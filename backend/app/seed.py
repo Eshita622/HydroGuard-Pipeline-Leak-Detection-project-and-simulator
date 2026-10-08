@@ -13,12 +13,30 @@ from app.models import (
     SensorReading,
     SystemSetting,
     Tank,
+    User,
     WaterChampion,
 )
+from app.auth import hash_password
 from app.services.leak_detection import DEFAULT_THRESHOLDS
 
 PUNE_CENTER = (18.5204, 73.8567)
 SEED_DEMO_CHAMPIONS = os.getenv("HYDROGUARD_SEED_DEMO_CHAMPIONS", "0") == "1"
+SEED_DEMO_ADMIN = os.getenv("HYDROGUARD_SEED_DEMO_ADMIN", "0") == "1"
+
+
+def seed_demo_admin(db: Session) -> None:
+    """Create the explicitly enabled presentation login without overwriting users."""
+    if not SEED_DEMO_ADMIN:
+        return
+    email = "operator@hydroguard-demo.dev"
+    if db.scalar(select(User).where(User.email == email)) is None:
+        db.add(User(
+            name="HydroGuard Demo Admin",
+            email=email,
+            phone="+919800000000",
+            password_hash=hash_password("local-test-password"),
+            role="ADMIN",
+        ))
 
 
 def seed_demo_champions(db: Session) -> None:
@@ -37,6 +55,7 @@ def seed_demo_champions(db: Session) -> None:
 
 def seed_demo_data(db: Session) -> None:
     """Insert a stable, Pune-based demo network once; never overwrite user data."""
+    seed_demo_admin(db)
     if db.scalar(select(Pipeline.id).limit(1)) is not None:
         if db.get(SystemSetting, "thresholds") is None:
             db.add(SystemSetting(key="thresholds"))
