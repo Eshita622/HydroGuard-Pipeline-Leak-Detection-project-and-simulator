@@ -1,0 +1,28 @@
+kind = "api"
+previewPath = "/api"
+title = "HydroGuard API"
+version = "1.0.0"
+id = "3B4_FFSkEVBkAeYMFRJ2e"
+
+[[services]]
+localPort = 8080
+name = "API Server"
+paths = ["/api", "/docs", "/redoc", "/openapi.json"]
+
+[services.development]
+run = "python ../../backend/run.py"
+
+[services.production]
+
+[services.production.build]
+args = ["python", "-m", "compileall", "-q", "../../backend/app"]
+
+[services.production.run]
+args = ["python", "../../backend/run.py"]
+
+[services.production.run.env]
+PORT = "8080"
+
+[services.production.health.startup]
+path = "/api/healthz"
+kind = "web"

@@ -1,0 +1,639 @@
+Build the complete backend for my existing project:
+
+PROJECT NAME:
+HydroGuard – Intelligent Water Pipeline Protection System
+
+IMPORTANT:
+Do NOT implement SMS, WhatsApp, Twilio, MSG91, email notifications, or any external notification service yet.
+My friend will add the SMS functionality later.
+
+The backend should be production-style but simple enough for a college mini-project.
+
+TECH STACK:
+- Python
+- FastAPI
+- SQLAlchemy
+- SQLite
+- Pydantic
+- JWT authentication
+- python-dotenv
+- CORS
+- Uvicorn
+
+==================================================
+1. DATABASE
+==================================================
+
+Create a SQLite database named:
+
+hydroguard.db
+
+Create these tables:
+
+USERS
+- id
+- name
+- email
+- phone
+- password_hash
+- role
+- created_at
+
+Roles:
+- ADMIN
+- WATER_CHAMPION
+
+PIPELINES
+- id
+- pipeline_code
+- name
+- zone
+- location
+- length_km
+- status
+- latitude
+- longitude
+- created_at
+
+Pipeline status:
+- NORMAL
+- WARNING
+- LEAK
+- INACTIVE
+
+SENSORS
+- id
+- sensor_code
+- pipeline_id
+- sensor_type
+- location
+- latitude
+- longitude
+- status
+- battery_level
+- last_seen
+- created_at
+
+Sensor types:
+- FLOW
+- PRESSURE
+- TANK_LEVEL
+- ACOUSTIC
+
+SENSOR_READINGS
+- id
+- sensor_id
+- flow_rate
+- pressure
+- tank_level
+- battery_level
+- timestamp
+
+TANKS
+- id
+- name
+- location
+- capacity_liters
+- current_level
+- latitude
+- longitude
+- status
+
+ALERTS
+- id
+- pipeline_id
+- sensor_id
+- alert_type
+- severity
+- message
+- flow_rate
+- pressure
+- status
+- created_at
+- acknowledged_at
+- resolved_at
+
+Alert types:
+- HIGH_FLOW
+- LOW_PRESSURE
+- LEAK_DETECTED
+- SENSOR_OFFLINE
+- LOW_TANK_LEVEL
+
+Severity:
+- INFO
+- WARNING
+- CRITICAL
+
+Alert status:
+- ACTIVE
+- ACKNOWLEDGED
+- ASSIGNED
+- IN_PROGRESS
+- RESOLVED
+
+MAINTENANCE_LOGS
+- id
+- pipeline_id
+- alert_id
+- assigned_to
+- description
+- action_taken
+- status
+- created_at
+- completed_at
+
+WATER_CHAMPIONS
+- id
+- user_id
+- name
+- phone
+- assigned_zone
+- latitude
+- longitude
+- availability_status
+
+==================================================
+2. AUTHENTICATION
+==================================================
+
+Implement:
+
+POST /api/auth/register
+POST /api/auth/login
+GET /api/auth/me
+
+Use JWT authentication.
+
+Passwords must be hashed.
+
+Allow users to register/login as:
+- ADMIN
+- WATER_CHAMPION
+
+Do not store plain-text passwords.
+
+==================================================
+3. SENSOR DATA API
+==================================================
+
+Create:
+
+POST /api/sensor-data
+
+It should accept:
+
+{
+    "device_id": "HG-ESP32-001",
+    "sensor_id": "S2",
+    "flow_rate": 18.6,
+    "pressure": 2.8,
+    "tank_level": 62,
+    "battery_level": 91,
+    "timestamp": "2026-10-02T10:45:00Z"
+}
+
+Validate the incoming data.
+
+Store readings in SENSOR_READINGS.
+
+Update the sensor's:
+- battery_level
+- last_seen
+- status
+
+==================================================
+4. LEAK DETECTION
+==================================================
+
+Implement rule-based leak detection.
+
+Do NOT call this machine learning or AI.
+
+Initial thresholds:
+
+NORMAL:
+flow_rate < 12 AND pressure >= 2.5
+
+WARNING:
+flow_rate >= 12 OR pressure < 2.5
+
+LEAK:
+flow_rate >= 18 OR pressure < 2.0
+
+Make these thresholds configurable in one place so they can easily be changed later.
+
+When a LEAK condition is detected:
+
+1. Create an ALERT.
+2. Set severity = CRITICAL.
+3. Set pipeline status = LEAK.
+4. Store the flow and pressure values.
+5. Include the pipeline/sensor location.
+6. Return the alert information in the API response.
+
+When WARNING is detected:
+
+1. Create a WARNING alert.
+2. Set pipeline status = WARNING.
+
+When readings return to normal:
+
+Set pipeline status back to NORMAL where appropriate.
+
+==================================================
+5. DASHBOARD API
+==================================================
+
+Create:
+
+GET /api/dashboard
+
+Return:
+
+- total pipelines
+- active pipelines
+- warning pipelines
+- leaking pipelines
+- inactive pipelines
+- total sensors
+- online sensors
+- offline sensors
+- total tanks
+- active alerts
+- critical alerts
+- average pressure
+- average flow rate
+- total pipeline length
+
+Example response:
+
+{
+    "total_pipelines": 24,
+    "active_pipelines": 20,
+    "warning_pipelines": 2,
+    "leaking_pipelines": 1,
+    "inactive_pipelines": 1,
+    "total_sensors": 18,
+    "online_sensors": 16,
+    "offline_sensors": 2,
+    "total_tanks": 3,
+    "active_alerts": 2,
+    "critical_alerts": 1,
+    "average_pressure": 2.8,
+    "average_flow_rate": 10.4,
+    "total_pipeline_length_km": 24.6
+}
+
+==================================================
+6. PIPELINE APIs
+==================================================
+
+Create:
+
+GET /api/pipelines
+GET /api/pipelines/{pipeline_id}
+POST /api/pipelines
+PUT /api/pipelines/{pipeline_id}
+DELETE /api/pipelines/{pipeline_id}
+
+Return latitude and longitude for map display.
+
+==================================================
+7. SENSOR APIs
+==================================================
+
+Create:
+
+GET /api/sensors
+GET /api/sensors/{sensor_id}
+GET /api/sensors/{sensor_id}/readings
+POST /api/sensors
+PUT /api/sensors/{sensor_id}
+
+The readings endpoint should support:
+
+?hours=24
+
+and return recent sensor readings.
+
+==================================================
+8. TANK APIs
+==================================================
+
+Create:
+
+GET /api/tanks
+GET /api/tanks/{tank_id}
+POST /api/tanks
+PUT /api/tanks/{tank_id}
+
+Return:
+- tank level
+- capacity
+- latitude
+- longitude
+- status
+
+==================================================
+9. ALERT APIs
+==================================================
+
+Create:
+
+GET /api/alerts
+GET /api/alerts/{alert_id}
+
+Allow filtering:
+
+/api/alerts?status=ACTIVE
+/api/alerts?severity=CRITICAL
+/api/alerts?type=LEAK_DETECTED
+
+Create:
+
+PUT /api/alerts/{alert_id}/acknowledge
+PUT /api/alerts/{alert_id}/assign
+PUT /api/alerts/{alert_id}/resolve
+
+When resolving an alert:
+- set status = RESOLVED
+- set resolved_at
+- update the related pipeline status when appropriate
+
+==================================================
+10. MAINTENANCE
+==================================================
+
+Create:
+
+GET /api/maintenance
+POST /api/maintenance
+PUT /api/maintenance/{id}
+
+Allow maintenance records to be linked to alerts and pipelines.
+
+Statuses:
+
+PENDING
+IN_PROGRESS
+COMPLETED
+
+==================================================
+11. WATER CHAMPIONS
+==================================================
+
+Create:
+
+GET /api/water-champions
+GET /api/water-champions/{id}
+POST /api/water-champions
+PUT /api/water-champions/{id}
+
+Allow a Water Champion to be assigned to an alert/maintenance task.
+
+==================================================
+12. MAP DATA API
+==================================================
+
+Create a dedicated endpoint:
+
+GET /api/map
+
+Return all information required by the frontend map.
+
+Response should contain:
+
+{
+    "tanks": [],
+    "sensors": [],
+    "pipelines": [],
+    "active_alerts": [],
+    "water_champions": []
+}
+
+Every map object should contain:
+
+- id
+- name/code
+- latitude
+- longitude
+- status
+
+For pipelines also return:
+
+- start coordinates
+- end coordinates
+- status
+
+This endpoint will be consumed by Leaflet/OpenStreetMap on the frontend.
+
+==================================================
+13. ANALYTICS
+==================================================
+
+Create:
+
+GET /api/analytics/flow
+GET /api/analytics/pressure
+GET /api/analytics/water-usage
+GET /api/analytics/alerts
+
+Support time ranges:
+
+24h
+7d
+30d
+
+Return data suitable for Recharts.
+
+==================================================
+14. SIMULATION MODE
+==================================================
+
+Create simulation endpoints so I can demonstrate the project without hardware.
+
+POST /api/simulation/normal
+POST /api/simulation/warning
+POST /api/simulation/leak
+
+These endpoints must internally use the SAME processing logic as real sensor data.
+
+Example leak simulation:
+
+POST /api/simulation/leak
+
+should generate something like:
+
+flow_rate = 18.6
+pressure = 1.8
+
+Then:
+
+ESP32/SIMULATION
+        ↓
+/api/sensor-data
+        ↓
+validation
+        ↓
+database
+        ↓
+leak detection
+        ↓
+alert creation
+        ↓
+dashboard update
+        ↓
+map update
+
+Do not create a separate fake alert system.
+
+==================================================
+15. SEED DATA
+==================================================
+
+Create realistic demo data for:
+
+3 tanks
+24 pipelines
+18 sensors
+several Water Champions
+several alerts
+sensor readings for the last 24 hours
+maintenance records
+
+Use realistic coordinates around an Indian village/town.
+
+Do NOT use random coordinates in oceans or unrelated countries.
+
+==================================================
+16. API DOCUMENTATION
+==================================================
+
+Enable FastAPI Swagger documentation:
+
+/docs
+
+Also enable:
+
+/redoc
+
+==================================================
+17. HEALTH CHECK
+==================================================
+
+Create:
+
+GET /api/health
+
+Response:
+
+{
+    "status": "healthy",
+    "service": "HydroGuard Backend"
+}
+
+==================================================
+18. CORS
+==================================================
+
+Allow the React frontend to communicate with the backend.
+
+Configure CORS using environment variables.
+
+For development allow localhost/Replit frontend origins.
+
+==================================================
+19. ENVIRONMENT VARIABLES
+==================================================
+
+Create:
+
+.env.example
+
+Include:
+
+DATABASE_URL=sqlite:///./hydroguard.db
+JWT_SECRET=change_this_secret
+CORS_ORIGINS=*
+
+Do NOT include any SMS credentials.
+
+Do NOT hardcode secrets.
+
+==================================================
+20. PROJECT STRUCTURE
+==================================================
+
+Use a clean structure such as:
+
+backend/
+    app/
+        main.py
+        database.py
+        models.py
+        schemas.py
+        auth.py
+        config.py
+
+        routers/
+            auth.py
+            dashboard.py
+            pipelines.py
+            sensors.py
+            tanks.py
+            alerts.py
+            maintenance.py
+            water_champions.py
+            map.py
+            analytics.py
+            simulation.py
+
+        services/
+            leak_detection.py
+            sensor_processing.py
+
+    seed.py
+    requirements.txt
+    .env.example
+
+==================================================
+21. IMPORTANT
+==================================================
+
+The backend must actually run.
+
+Do not create placeholder endpoints.
+
+Do not use fake API responses.
+
+Connect all endpoints to the SQLite database.
+
+Handle errors properly.
+
+Return proper HTTP status codes.
+
+Add Pydantic validation.
+
+Add comments explaining important logic.
+
+After implementation:
+
+1. Install dependencies.
+2. Create the database.
+3. Run seed data.
+4. Start FastAPI.
+5. Test /api/health.
+6. Test /docs.
+7. Test login.
+8. Test sensor-data.
+9. Test leak simulation.
+10. Verify that an alert is created in the database.
+11. Verify that /api/map returns pipeline, sensor and tank coordinates.
+
+Finally, show me:
+- the backend folder structure
+- how to run the backend
+- API endpoints
+- test commands
+- any environment variables I need.

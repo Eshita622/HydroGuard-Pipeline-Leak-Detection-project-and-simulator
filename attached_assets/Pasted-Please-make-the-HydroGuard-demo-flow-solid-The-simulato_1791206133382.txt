@@ -1,0 +1,86 @@
+Please make the HydroGuard demo flow solid. The simulator is at
+artifacts/hydroguard/public/simulator.html (a pipe game with 9 zones: hit a
+pipe to raise it Low -> Medium -> High, each hit POSTs to /api/sensor-data).
+Do NOT replace or rewrite it from scratch; edit it in place. Do not touch the
+Twilio secrets (keep SMS_ENABLED=false). Work from easiest to hardest:
+
+1. Live updates without refresh. In artifacts/hydroguard/src/App.tsx (and any
+   page components), set refetchInterval: 2000 and
+   refetchIntervalInBackground: true on the react-query hooks for dashboard,
+   alerts, map, sensors, maintenance and water-champions so every screen
+   updates within ~2 seconds of a simulator hit, with no manual refresh.
+
+2. Correct alert wording by risk level. Right now every alert is titled
+   "Leak Detected" or "High Flow". Show: Low -> "Low risk", Medium ->
+   "Medium risk", High -> "High risk" (keep the zone and sensor in the
+   subtitle). Derive this from the existing classification/severity in
+   backend/app/services/sensor_processing.py (and the views/schemas), keep
+   the stored alert types and API compatible, and update the frontend
+   labels, badges and dashboard counters accordingly. Also make sure a
+   Low-risk hit produces a visible alert/state in the app, and that
+   repeated hits on one zone UPDATE its active alert instead of creating
+   duplicates.
+
+3. Consistent zone-to-sensor mapping. In the simulator each of the 9 zones
+   must map to one distinct, real sensor/pipeline (no two zones sharing a
+   sensor, e.g. Zone 4 and Zone 8 both landing on S8). Show the app's own
+   zone/monitoring-point name on each pipe so the simulator and the
+   dashboard describe the same thing.
+
+4. Pop-up notifications in the app. When a new alert is created or its risk
+   level increases, show an in-app toast/pop-up (top right, auto-dismiss
+   after ~6 s, click opens that alert) with the risk level, zone and time.
+   For High risk, show the mock SMS text in the pop-up
+   ("HYDROGUARD Alert: Possible WATER LEAKAGE detected! Location: Zone N ...")
+   and add a "Mock SMS" label so it is clear no real SMS was sent. Detect
+   new alerts by comparing alert ids/risk between polls so the same alert
+   never pops up twice and nothing pops up on first page load.
+
+5. Mock SMS backend (if not already present). backend/app/services/
+   sms_service.py with a send_sms(phone, message) that never calls any
+   provider, stores messages in memory, and is called from
+   sensor_processing.py when risk is High. Return notificationsStatus
+   "mock_sent". Add GET /api/sms-log (newest first) and show the log
+   somewhere in the Alerts page.
+
+6. "Fix it" action in the simulator. Add a tool toggle at the top of the
+   simulator: Hammer | Fix it. In Fix it mode, clicking a damaged pipe
+   opens a small panel: choose an available Water Champion (from
+   GET /api/water-champions), click "Assign", then "Mark repaired". Use the
+   existing endpoints: POST /api/alerts/{id}/assign, /acknowledge, and
+   /resolve (find the zone's active alert id via GET /api/alerts), then
+   post normal readings so the pipe returns to green. The app must show the
+   same flow: alert Assigned to that champion, then Resolved, with the
+   champion's status updating, and the simulator log must show each call.
+   Handle auth with the existing hg_access_token logic and show a clear
+   message if the user is not signed in.
+
+7. Water lost counter. Add a "Water lost (estimated)" counter to the
+   simulator that grows every second while a leak is active, per zone and
+   in total (litres = (leak flow - normal flow) L/min x elapsed minutes),
+   and stops for a zone when it is fixed. Add a second figure,
+   "Water saved by fast response" = what an assumed slow manual detection
+   delay (a clearly labelled, editable constant at the top of the file,
+   e.g. 6 hours) would have lost minus what was actually lost. Label both
+   as simulated estimates. Optionally show the same total on the app's
+   Overview "Water loss exposure" card.
+
+Integrity requirements (important):
+- Mark everything created by the simulator as simulated (e.g. a "source"
+  or "simulated" flag/tag) so it can never be confused with real field
+  alerts. Do not delete, edit or resolve any seeded demo alerts, sensors,
+  or champions.
+- "Reset all zones" must only reset/resolve the simulator's own alerts and
+  restore normal readings, leaving seeded data untouched.
+- No hard-coded fake numbers in the UI: every figure shown must come from
+  the backend or from the clearly labelled simulation constants.
+- The mock SMS must be labelled as mock everywhere it is displayed.
+- Keep the backend tests passing and add tests for: risk-level titles,
+  no duplicate alerts on repeated hits, assign -> resolve flow, and
+  sms-log. Run python -m pytest backend/tests and the TypeScript check.
+
+When finished, open /simulator.html and the app side by side, run one full
+cycle (hit a zone Low -> Medium -> High, see the pop-up and mock SMS, assign
+a champion, mark repaired, check the litres counter and the app), and give
+me a pass/fail list plus the files you changed. Do not commit generated
+files unrelated to this work.

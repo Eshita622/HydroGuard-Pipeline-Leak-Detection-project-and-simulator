@@ -1,0 +1,966 @@
+Build the complete backend for my existing project:
+
+HYDROGUARD — Intelligent Water Pipeline Protection System
+
+IMPORTANT:
+Do not rebuild or destroy the existing frontend.
+
+Create a production-style backend that the React frontend can communicate with.
+
+TECH STACK:
+
+Python
+FastAPI
+SQLite for development
+SQLAlchemy ORM
+Pydantic
+JWT authentication
+Twilio for real SMS
+python-dotenv
+
+The backend must work on Replit.
+
+==================================================
+PROJECT STRUCTURE
+==================================================
+
+Create:
+
+backend/
+    main.py
+    database.py
+    models.py
+    schemas.py
+    auth.py
+    leak_detection.py
+    sms.py
+    analytics.py
+    requirements.txt
+    .env.example
+
+Use environment variables for all secrets.
+
+NEVER expose secrets to the frontend.
+
+==================================================
+DATABASE
+==================================================
+
+Create these tables:
+
+USERS
+
+id
+name
+email
+phone
+password_hash
+role
+assigned_zone
+created_at
+
+
+PIPELINES
+
+id
+name
+zone
+location
+length_km
+status
+latitude
+longitude
+created_at
+
+
+SENSORS
+
+id
+sensor_id
+device_id
+pipeline_id
+zone
+latitude
+longitude
+status
+battery_level
+last_seen
+created_at
+
+
+SENSOR_READINGS
+
+id
+sensor_id
+flow_rate
+pressure
+tank_level
+battery_level
+timestamp
+
+
+TANKS
+
+id
+name
+location
+level_percentage
+latitude
+longitude
+status
+
+
+ALERTS
+
+id
+alert_id
+sensor_id
+pipeline_id
+zone
+alert_type
+flow_rate
+pressure
+severity
+status
+description
+assigned_champion_id
+created_at
+acknowledged_at
+resolved_at
+
+
+MAINTENANCE_LOGS
+
+id
+alert_id
+pipeline_id
+assigned_champion_id
+issue
+priority
+status
+started_at
+completed_at
+notes
+
+
+WATER_CHAMPIONS
+
+id
+user_id
+name
+phone
+assigned_zone
+status
+
+
+SMS_LOGS
+
+id
+alert_id
+recipient
+message
+provider
+status
+provider_message_id
+sent_at
+error_message
+
+
+DEVICES
+
+id
+device_id
+device_type
+status
+last_seen
+api_key_hash
+
+
+==================================================
+AUTHENTICATION
+==================================================
+
+Implement JWT authentication.
+
+Endpoints:
+
+POST /api/auth/register
+POST /api/auth/login
+GET /api/auth/me
+
+Roles:
+
+ADMIN
+WATER_CHAMPION
+
+Hash passwords securely.
+
+Never store plain-text passwords.
+
+Allow users to log in using email/mobile + password.
+
+Provide an OTP-ready structure, but do not require an external OTP provider for development.
+
+==================================================
+ESP32 API
+==================================================
+
+Create:
+
+POST /api/sensor-data
+
+Expected JSON:
+
+{
+    "device_id": "HG-ESP32-001",
+    "sensor_id": "S2",
+    "flow_rate": 18.6,
+    "pressure": 1.8,
+    "tank_level": 62,
+    "battery_level": 91,
+    "timestamp": "2026-10-02T10:45:00Z"
+}
+
+Validate the request.
+
+Authenticate the device.
+
+Store the reading.
+
+Update:
+
+Sensor
+Device
+Pipeline
+Last seen
+Battery
+
+Then run leak detection.
+
+==================================================
+LEAK DETECTION
+==================================================
+
+Implement rule-based leak detection.
+
+IMPORTANT:
+
+Do NOT call this Machine Learning or AI.
+
+Use configurable thresholds.
+
+Example:
+
+NORMAL:
+
+Flow < 12 L/min
+Pressure >= 2.5 bar
+
+WARNING:
+
+Flow >= 12 L/min
+OR
+Pressure < 2.5 bar
+
+LEAK:
+
+Flow >= 18 L/min
+OR
+Pressure < 2.0 bar
+
+Make thresholds configurable through settings.
+
+Return:
+
+status
+severity
+reason
+
+Example:
+
+{
+    "status": "LEAK",
+    "severity": "CRITICAL",
+    "reason": "Abnormally high flow and low pressure"
+}
+
+==================================================
+UPSTREAM/DOWNSTREAM DETECTION
+==================================================
+
+If possible, support comparison between two sensors.
+
+Example:
+
+Upstream flow:
+25 L/min
+
+Downstream flow:
+18 L/min
+
+Difference:
+7 L/min
+
+If the difference exceeds the configured threshold:
+
+Potential leakage detected.
+
+Make this feature optional.
+
+==================================================
+ALERT CREATION
+==================================================
+
+When a leak is detected:
+
+1. Create an ALERT
+2. Set pipeline status = LEAK
+3. Set severity = CRITICAL
+4. Find Water Champion assigned to that zone
+5. Assign the champion
+6. Trigger SMS
+7. Create SMS_LOG
+8. Return complete response
+
+Response:
+
+{
+    "success": true,
+    "alert_created": true,
+    "alert_id": "ALERT-0021",
+    "pipeline_status": "LEAK",
+    "sms_status": "SENT"
+}
+
+==================================================
+ALERT WORKFLOW
+==================================================
+
+Implement:
+
+ACTIVE
+ACKNOWLEDGED
+ASSIGNED
+IN_PROGRESS
+RESOLVED
+
+Endpoints:
+
+GET /api/alerts
+
+GET /api/alerts/{alert_id}
+
+POST /api/alerts/{alert_id}/acknowledge
+
+POST /api/alerts/{alert_id}/assign
+
+POST /api/alerts/{alert_id}/resolve
+
+When resolved:
+
+Set pipeline status back to NORMAL if no other active leak exists.
+
+==================================================
+SMS SERVICE
+==================================================
+
+THIS IS VERY IMPORTANT.
+
+Implement real SMS support using Twilio.
+
+Use environment variables:
+
+TWILIO_ACCOUNT_SID
+TWILIO_AUTH_TOKEN
+TWILIO_PHONE_NUMBER
+
+Never put these in frontend code.
+
+Never hardcode them.
+
+The recipient phone number comes from the Water Champion database record.
+
+Use international phone format.
+
+Example:
+
++919876543210
+
+When a critical alert occurs, generate:
+
+HYDROGUARD ALERT
+
+Possible water leakage detected!
+
+Location: Zone 2 - Main Road
+Flow: 18.6 L/min
+Pressure: 1.8 bar
+
+Please inspect the pipeline.
+
+HydroGuard Team
+
+Send using Twilio.
+
+Save the result to SMS_LOGS.
+
+Store:
+
+recipient
+message
+status
+provider_message_id
+sent_at
+error_message
+
+==================================================
+DEMO SMS MODE
+==================================================
+
+Implement two modes:
+
+DEMO
+LIVE
+
+Environment variable:
+
+SMS_MODE=DEMO
+
+If DEMO:
+
+DO NOT call Twilio.
+
+Instead:
+
+1. Generate the SMS
+2. Store it in SMS_LOGS
+3. Return:
+
+{
+    "status": "DEMO_SENT"
+}
+
+The frontend must display:
+
+DEMO SMS SENT
+
+Do NOT falsely claim a real SMS was delivered.
+
+If:
+
+SMS_MODE=LIVE
+
+then call Twilio.
+
+If Twilio fails:
+
+Return:
+
+{
+    "status": "FAILED",
+    "error": "SMS provider error"
+}
+
+Do not crash the backend.
+
+==================================================
+TEST SMS
+==================================================
+
+Create:
+
+POST /api/sms/test
+
+Request:
+
+{
+    "phone": "+919876543210"
+}
+
+In DEMO mode:
+
+store and return demo SMS.
+
+In LIVE mode:
+
+send real SMS using Twilio.
+
+==================================================
+SMS HISTORY
+==================================================
+
+Create:
+
+GET /api/sms/history
+
+Return:
+
+recipient
+alert
+message
+status
+timestamp
+
+==================================================
+PIPELINE APIs
+==================================================
+
+Create:
+
+GET /api/pipelines
+
+GET /api/pipelines/{id}
+
+POST /api/pipelines
+
+PUT /api/pipelines/{id}
+
+GET /api/pipelines/{id}/status
+
+Pipeline status:
+
+NORMAL
+WARNING
+LEAK
+INACTIVE
+
+==================================================
+SENSOR APIs
+==================================================
+
+Create:
+
+GET /api/sensors
+
+GET /api/sensors/{id}
+
+GET /api/sensors/{id}/readings
+
+POST /api/sensor-data
+
+Return latest sensor status.
+
+==================================================
+READING APIs
+==================================================
+
+Create:
+
+GET /api/readings
+
+GET /api/readings/latest
+
+GET /api/readings/{sensor_id}
+
+Support:
+
+24h
+7d
+30d
+
+time filters.
+
+==================================================
+DASHBOARD API
+==================================================
+
+Create:
+
+GET /api/dashboard
+
+Return:
+
+total_pipeline_length
+active_flow_meters
+online_sensors
+total_sensors
+active_alerts
+average_pressure
+average_flow
+tank_level
+estimated_water_loss
+
+==================================================
+ANALYTICS
+==================================================
+
+Create:
+
+GET /api/analytics
+
+Calculate:
+
+Flow trends
+Pressure trends
+Tank levels
+Water usage
+Estimated water loss
+Leak count
+Warning count
+Sensor uptime
+Maintenance response time
+
+Do not generate random values.
+
+Use actual database readings.
+
+==================================================
+PREDICTIVE MAINTENANCE
+==================================================
+
+Implement a RULE-BASED maintenance risk score.
+
+Do NOT call it AI.
+
+Calculate based on:
+
+Pressure drops
+Repeated abnormal flow
+Number of alerts
+Sensor failures
+Maintenance history
+
+Return:
+
+LOW
+MEDIUM
+HIGH
+CRITICAL
+
+Also return reasons.
+
+Example:
+
+{
+    "risk": "HIGH",
+    "score": 78,
+    "reasons": [
+        "Repeated pressure drops",
+        "Three leakage alerts in 7 days"
+    ]
+}
+
+==================================================
+MAINTENANCE APIs
+==================================================
+
+Create:
+
+GET /api/maintenance
+
+POST /api/maintenance
+
+PUT /api/maintenance/{id}
+
+Statuses:
+
+PENDING
+ASSIGNED
+IN_PROGRESS
+COMPLETED
+
+When a maintenance record is completed, update the associated alert.
+
+==================================================
+WATER CHAMPIONS
+==================================================
+
+Create:
+
+GET /api/water-champions
+
+GET /api/water-champions/{id}
+
+POST /api/water-champions
+
+PUT /api/water-champions/{id}
+
+Allow alerts to be assigned to Water Champions.
+
+Use their stored phone number for SMS.
+
+==================================================
+COMMUNITY REPORTS
+==================================================
+
+Create:
+
+POST /api/community-reports
+
+GET /api/community-reports
+
+Fields:
+
+location
+description
+reported_by
+image_url
+status
+created_at
+
+Statuses:
+
+NEW
+VERIFIED
+ASSIGNED
+RESOLVED
+
+==================================================
+SECURITY
+==================================================
+
+Implement:
+
+JWT authentication
+Password hashing
+Role-based authorization
+CORS
+Input validation
+Device API key authentication
+Environment variables
+No secrets in source code
+
+The ESP32 should authenticate using:
+
+device_id
+device API key
+
+Do not allow arbitrary devices to submit readings.
+
+==================================================
+CORS
+==================================================
+
+Allow the React frontend to communicate with FastAPI.
+
+Configure CORS using an environment variable for production.
+
+For development, allow the Replit frontend URL.
+
+==================================================
+DATABASE INITIALIZATION
+==================================================
+
+When the application starts:
+
+1. Create tables
+2. Create demo administrator
+3. Create demo Water Champion
+4. Create demo pipelines
+5. Create demo sensors
+6. Create demo tanks
+
+Use realistic sample data.
+
+Do not generate random data every time the server restarts.
+
+==================================================
+HARDWARE SIMULATION
+==================================================
+
+Create:
+
+POST /api/simulation/normal
+
+POST /api/simulation/warning
+
+POST /api/simulation/leak
+
+These endpoints should internally use the same processing logic as:
+
+POST /api/sensor-data
+
+DO NOT create a separate fake alert system.
+
+The simulation must go through:
+
+Sensor reading
+→ leak detection
+→ database
+→ pipeline update
+→ alert
+→ Water Champion assignment
+→ SMS
+
+==================================================
+DEMO LEAK
+==================================================
+
+When:
+
+POST /api/simulation/leak
+
+is called, simulate:
+
+Device:
+HG-ESP32-001
+
+Sensor:
+S2
+
+Zone:
+Zone 2 - Main Road
+
+Flow:
+18.6 L/min
+
+Pressure:
+1.8 bar
+
+Tank:
+62%
+
+Battery:
+91%
+
+Expected:
+
+1. Reading stored
+2. Leak detected
+3. Pipeline turns RED/LEAK
+4. Alert created
+5. Water Champion assigned
+6. SMS generated
+7. SMS sent if LIVE mode
+8. SMS logged
+
+==================================================
+HEALTH CHECK
+==================================================
+
+Create:
+
+GET /api/health
+
+Return:
+
+{
+    "status": "healthy",
+    "service": "HydroGuard Backend"
+}
+
+==================================================
+API DOCUMENTATION
+==================================================
+
+FastAPI Swagger documentation must work.
+
+Use:
+
+/docs
+
+Make every endpoint properly documented.
+
+==================================================
+ERROR HANDLING
+==================================================
+
+Return proper HTTP status codes.
+
+Examples:
+
+400 invalid data
+401 unauthorized
+403 forbidden
+404 not found
+500 internal server error
+
+Do not expose sensitive information in errors.
+
+==================================================
+REQUIREMENTS.TXT
+==================================================
+
+Include all required packages.
+
+Example dependencies:
+
+fastapi
+uvicorn
+sqlalchemy
+pydantic
+python-jose
+passlib
+bcrypt
+twilio
+python-dotenv
+python-multipart
+
+==================================================
+ENVIRONMENT VARIABLES
+==================================================
+
+Create .env.example:
+
+DATABASE_URL=sqlite:///./hydroguard.db
+
+JWT_SECRET=change_this_secret
+
+SMS_MODE=DEMO
+
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_PHONE_NUMBER=
+
+FRONTEND_URL=
+
+DEVICE_API_KEY=
+
+Do not commit the real .env file.
+
+==================================================
+FINAL END-TO-END TEST
+==================================================
+
+After implementation, test this exact scenario:
+
+1. Start backend.
+2. Login as Water Champion.
+3. Open dashboard.
+4. Open Hardware Simulation.
+5. Click LEAK.
+6. Send:
+
+Flow = 18.6 L/min
+Pressure = 1.8 bar
+Tank = 62%
+Battery = 91%
+
+7. Backend detects leak.
+8. Alert is created.
+9. Pipeline status becomes LEAK.
+10. Water Champion is assigned.
+11. SMS is generated.
+12. If SMS_MODE=DEMO:
+    SMS_LOG status = DEMO_SENT.
+
+13. If SMS_MODE=LIVE:
+    Twilio sends actual SMS.
+
+14. Frontend displays the new alert.
+15. Pipeline map changes to RED.
+16. Alert can be acknowledged.
+17. Maintenance can be started.
+18. Maintenance can be completed.
+19. Alert can be resolved.
+20. Pipeline returns to NORMAL if no other active leak exists.
+
+IMPORTANT:
+Do not build disconnected demo features.
+
+Everything must use the same database and API.
+
+The final system must demonstrate:
+
+ESP32/Simulation
+→ Backend API
+→ Database
+→ Leak Detection
+→ Alert
+→ Pipeline Map
+→ Water Champion
+→ SMS
+→ Maintenance
+→ Resolution
+
+Build and test the complete backend now.

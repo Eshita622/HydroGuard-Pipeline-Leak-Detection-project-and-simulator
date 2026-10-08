@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HydroGuard Pipe Patrol</title>
+<style>
+:root{--bg:#0a1b2a;--panel:#10304a;--water:#3cc4f0;--ok:#43a047;--low:#f9c01f;--mid:#f57c00;--high:#e53935;--ink:#eaf6ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Trebuchet MS",Verdana,sans-serif;display:flex;flex-wrap:wrap;gap:14px;padding:14px}
+#game{flex:1 1 560px;min-width:320px}
+#side{flex:0 0 280px;display:flex;flex-direction:column;gap:12px}
+h1{font-size:20px;margin:0 0 4px}
+.hint{font-size:13px;opacity:.8;margin:0 0 8px}
+svg{width:100%;height:auto;background:#0d2438;border-radius:14px;display:block}
+.pipe{fill:var(--ok);stroke:#06121c;stroke-width:3;transition:fill .3s}
+.l1 .pipe{fill:var(--low)}.l2 .pipe{fill:var(--mid)}.l3 .pipe{fill:var(--high)}
+.flow{stroke:rgba(255,255,255,.7);stroke-width:4;stroke-dasharray:8 18;animation:flow .8s linear infinite;fill:none}
+.l3 .flow{animation-duration:.3s}
+@keyframes flow{to{stroke-dashoffset:-26}}
+.zone{cursor:pointer}
+.zone:hover .pipe{filter:brightness(1.25)}
+.crack{stroke:#1b0d00;stroke-width:3;fill:none;opacity:0}
+.l1 .crack,.l2 .crack,.l3 .crack{opacity:1}
+.l3 .crack{stroke-width:5}
+.sensor{fill:#fff;stroke:#06121c;stroke-width:3}
+.l1 .sensor{fill:var(--low)}.l2 .sensor{fill:var(--mid)}.l3 .sensor{fill:var(--high);animation:pulse .5s infinite alternate}
+@keyframes pulse{to{r:13}}
+.p{fill:var(--water);display:none;animation:spurt 1s linear infinite;animation-delay:var(--d)}
+.l1 .p1,.l1 .p2,.l2 .p1,.l2 .p2,.l2 .p3,.l2 .p4,.l3 .p{display:block}
+@keyframes spurt{0%{transform:translate(0,0);opacity:1}35%{transform:translate(var(--dx),6px)}100%{transform:translate(calc(var(--dx)*1.2),var(--dy));opacity:0}}
+.puddle{fill:var(--water);opacity:0;transition:all .4s}
+.l1 .puddle{opacity:.35;transform:scaleX(.5)}.l2 .puddle{opacity:.5;transform:scaleX(.9)}.l3 .puddle{opacity:.65;transform:scaleX(1.5)}
+.puddle{transform-box:fill-box;transform-origin:left center}
+.mainpipe{fill:#2e7d32;stroke:#06121c;stroke-width:3}.flange{fill:#1d3b52;stroke:#06121c;stroke-width:2}
+.zlabel{font-size:13px;fill:var(--ink);font-weight:bold;pointer-events:none}
+.hammer{position:fixed;font-size:44px;pointer-events:none;transform:translate(-50%,-50%);z-index:9}
+.hammer.swing{animation:swing .25s}
+@keyframes swing{0%{transform:translate(-50%,-50%) rotate(0)}40%{transform:translate(-50%,-50%) rotate(-50deg)}100%{transform:translate(-50%,-50%) rotate(0)}}
+.card{background:var(--panel);border-radius:12px;padding:12px}
+#chip{font-size:13px;padding:6px 10px;border-radius:20px;background:#555;display:inline-block}
+#chip.ok{background:#2e7d32}#chip.bad{background:#b71c1c}
+#log{font:12px/1.4 Consolas,monospace;max-height:150px;overflow:auto;white-space:pre-wrap}
+#phone{background:#f4f4f4;color:#111;border-radius:16px;padding:12px;font-size:13px;transform:translateY(20px);opacity:0;transition:.4s;max-height:0;overflow:hidden}
+#phone.show{transform:none;opacity:1;max-height:300px}
+#phone .bubble{background:#dcf8c6;border-radius:10px;padding:8px;margin-top:6px}
+button{background:var(--water);color:#06121c;border:0;border-radius:8px;padding:9px 14px;font-weight:bold;cursor:pointer}
+.score{display:flex;gap:8px;font-size:13px}.score span{background:#06121c;padding:4px 8px;border-radius:6px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style></head><body>
+<div id="game">
+  <h1>Pipe Patrol: hit a pipe to crack it</h1>
+  <p class="hint">Click a pipe segment. 1 hit = low risk, 2 = medium, 3 = high (mock SMS fires). Open the HydroGuard dashboard in the next window to watch it react.</p>
+  <svg id="board" viewBox="0 0 800 520" role="img" aria-label="Village pipeline with nine zones"></svg>
+</div>
+<div id="side">
+  <div class="card"><div id="chip">Connecting…</div>
+    <div class="score" style="margin-top:8px"><span id="sLow">Low: 0</span><span id="sMid">Medium: 0</span><span id="sHigh">High: 0</span></div></div>
+  <div class="card"><button onclick="resetAll()">Reset all zones</button></div>
+  <div id="phone"></div>
+  <div class="card"><b>Server log</b><div id="log"></div></div>
+</div>
+<div class="hammer" id="hammer" style="display:none">🔨</div>
+
+<script>
+/* ===== CONFIG: the only things you may need to edit ===== */
+const API   = location.protocol==="file:" ? "http://localhost:8080/api" : "/api";   // relative on Replit
+const TOKEN = "";                            // paste a JWT only if GET /api/sensors says 401
+const READINGS = [                           // flow (L/min), pressure (bar) per risk level
+  {flow:12, pressure:2.4},   // 0 normal
+  {flow:16, pressure:1.9},   // 1 low
+  {flow:22, pressure:1.4},   // 2 medium  (should cross WARNING in /api/settings)
+  {flow:30, pressure:0.7},   // 3 high    (should cross LEAK / CRITICAL)
+];
+const CHAMPION_PHONE = "+91 98765 43210";
+/* ======================================================== */
+
+const NS="http://www.w3.org/2000/svg", LABEL=["Normal","Low","Medium","High"];
+const levels=Array(9).fill(0); let sensors=[];
+const $=id=>document.getElementById(id);
+const el=(t,a={},p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);p&&p.appendChild(e);return e};
+
+function log(m){const l=$("log");l.textContent=new Date().toLocaleTimeString()+"  "+m+"\n"+l.textContent}
+function chip(t,c){const e=$("chip");e.textContent=t;e.className=c||""}
+
+/* ---------- draw the village network once ---------- */
+const svg=$("board"), COLS=[230,440,650], groups=[], labels=[];
+for(let z=0;z<9;z++){
+  const col=Math.floor(z/3), row=z%3, x=COLS[col], y=105+row*120;
+  const g=el("g",{class:"zone l0"},svg);
+  el("rect",{x:x-15,y:y,width:30,height:120,rx:4,class:"pipe"},g);
+  el("line",{x1:x,y1:y+4,x2:x,y2:y+116,class:"flow"},g);
+  el("rect",{x:x-19,y:y+116,width:38,height:8,rx:2,class:"flange"},g);   // coupling between segments
+  el("path",{d:`M${x+15} ${y+55} l-10 8 8 8 -12 8 6 8`,class:"crack"},g);
+  el("ellipse",{cx:x+40,cy:y+112,rx:28,ry:5,class:"puddle"},g);
+  for(let i=1;i<=6;i++){
+    const p=el("circle",{cx:x+16,cy:y+62,r:3+(i%3),class:`p p${i}`},g);
+    p.style.setProperty("--d",(i*0.15)+"s");
+    p.style.setProperty("--dx",(6+i*3)+"px");     // small sideways push
+    p.style.setProperty("--dy",(40+i*6)+"px");    // then straight down
+  }
+  el("circle",{cx:x,cy:y+30,r:9,class:"sensor"},g);
+  labels.push(el("text",{x:x+24,y:y+22,class:"zlabel"},g));
+  g.addEventListener("click",e=>hit(z,e));
+  groups.push(g);
+}
+// main line drawn after the branches so it covers their tops
+el("rect",{x:100,y:81,width:580,height:28,rx:6,class:"mainpipe"},svg);
+el("line",{x1:110,y1:95,x2:670,y2:95,class:"flow"},svg);
+COLS.forEach(x=>el("rect",{x:x-19,y:104,width:38,height:8,rx:2,class:"flange"},svg));  // junction collars
+// tank drawn last so the outlet pipe looks attached to it
+el("rect",{x:20,y:40,width:100,height:170,rx:10,fill:"#1a4a6b",stroke:"#06121c","stroke-width":3},svg);
+el("rect",{x:26,y:80,width:88,height:124,rx:6,fill:"#3cc4f0",opacity:.8},svg);
+el("rect",{x:112,y:76,width:12,height:38,rx:2,class:"flange"},svg);
+el("text",{x:70,y:236,"text-anchor":"middle",class:"zlabel"},svg).textContent="Overhead tank";
+
+/* ---------- backend connection ---------- */
+const H=()=>{const t=TOKEN||localStorage.getItem("hg_access_token");return Object.assign({"Content-Type":"application/json"},t?{Authorization:"Bearer "+t}:{})};
+async function loadSensors(){
+  try{
+    const r=await fetch(API+"/sensors",{headers:H()});
+    if(!r.ok) throw new Error("GET /sensors → "+r.status);
+    const all=await r.json();
+    const list=Array.isArray(all)?all:(all.items||all.sensors||[]);
+    const flow=list.filter(s=>String(s.type||s.sensorType||"").toUpperCase()==="FLOW");
+    sensors=(flow.length?flow:list);
+    if(!sensors.length) throw new Error("no sensors returned");
+    chip("Connected · "+sensors.length+" sensors","ok"); log("Loaded "+sensors.length+" sensors from backend");
+  }catch(e){
+    sensors=[]; chip("Backend not reachable","bad"); log(String(e)+" · using ids 1-9");
+  }
+}
+function sensorFor(z){ return sensors.length?sensors[z%sensors.length]:{id:z+1}; }
+
+async function send(z){
+  const s=sensorFor(z), r=READINGS[levels[z]], id=s.id??s.sensorId, pid=s.pipelineId??s.pipeline_id;
+  // Alias keys cover common naming; the server log below shows which ones your schema wants.
+  const body={sensorId:id,sensor_id:id,pipelineId:pid,pipeline_id:pid,
+    flow:r.flow,flowRate:r.flow,flow_rate:r.flow,pressure:r.pressure,
+    tankLevel:70,tank_level:70,batteryLevel:90,battery_level:90};
+  try{
+    const res=await fetch(API+"/sensor-data",{method:"POST",headers:H(),body:JSON.stringify(body)});
+    const txt=await res.text();
+    log(`Zone ${z+1} L${levels[z]} → ${res.status} ${txt.slice(0,160)}`);
+    chip(res.ok?"Connected · last send OK":"Server rejected data (see log)",res.ok?"ok":"bad");
+  }catch(e){log("Send failed: "+e); chip("Backend not reachable","bad")}
+}
+
+/* ---------- game actions ---------- */
+function paint(){
+  groups.forEach((g,i)=>{g.setAttribute("class","zone l"+levels[i]);labels[i].textContent="Zone "+(i+1)+" · "+LABEL[levels[i]]});
+  [["sLow","Low",1],["sMid","Medium",2],["sHigh","High",3]].forEach(([id,n,k])=>$(id).textContent=n+": "+levels.filter(v=>v===k).length);
+}
+async function hit(z,ev){
+  swing(ev);
+  if(levels[z]>=3) return;
+  levels[z]++;
+  paint(); await send(z);
+  if(levels[z]===3) sms(z+1);
+}
+function sms(zone){
+  const p=$("phone"), t=new Date().toLocaleString();
+  p.innerHTML=`<b>HydroGuard</b> <small>mock SMS to Water Champion</small>
+  <div class="bubble">HYDROGUARD Alert: Possible WATER LEAKAGE detected!<br>Location: Zone ${zone}<br>
+  Abnormal Flow: ${READINGS[3].flow} L/min (High)<br>Time: ${t}<br>Action: Please inspect and take necessary action.<br>
+  Contact: Water Champion ${CHAMPION_PHONE}<br>– HydroGuard Team</div>`;
+  p.classList.remove("show"); void p.offsetWidth; p.classList.add("show");
+  log("Mock SMS shown for zone "+zone);
+}
+async function resetAll(){
+  for(let z=0;z<9;z++){levels[z]=0; await send(z)}
+  paint();$("phone").classList.remove("show");log("All zones reset to normal");
+}
+function swing(ev){
+  const h=$("hammer");h.style.display="block";h.style.left=ev.clientX+"px";h.style.top=ev.clientY+"px";
+  h.classList.remove("swing");void h.offsetWidth;h.classList.add("swing");
+  setTimeout(()=>h.style.display="none",300);
+}
+paint(); loadSensors();
+</script></body></html>

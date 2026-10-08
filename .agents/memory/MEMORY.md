@@ -1,0 +1,2 @@
+- [HydroGuard authentication and notifications](hydroguard-auth-sms.md) — sign in with password/JWT; keep all OTP and notification delivery out of scope.
+- [HydroGuard simulator ownership](hydroguard-simulator.md) — preserve the user’s pipe-game simulator; never replace a missing checkout copy with a newly invented page.

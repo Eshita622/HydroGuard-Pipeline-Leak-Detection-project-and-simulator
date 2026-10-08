@@ -1,0 +1,742 @@
+Build the complete frontend for a project called:
+
+HYDROGUARD — Intelligent Water Pipeline Protection System
+
+IMPORTANT:
+Create a professional, functional, responsive web/mobile-style application.
+This is a college engineering mini-project, so the UI must look like a real water-management system and NOT like a generic AI-generated dashboard.
+
+TECH STACK:
+- React
+- Vite
+- JavaScript
+- Tailwind CSS
+- Lucide React icons
+- Recharts for graphs
+- React Router
+- Leaflet + OpenStreetMap for the pipeline map
+
+Do NOT use fake gradients everywhere.
+Do NOT use excessive glassmorphism.
+Do NOT put every piece of information inside a rounded card.
+Do NOT use emojis as icons.
+Use Lucide icons.
+Use realistic sample data.
+Use clean spacing and professional typography.
+
+==================================================
+DESIGN SYSTEM
+==================================================
+
+Primary colors:
+
+Deep Teal: #123B46
+Teal: #176B67
+Pale Mint: #DCEFEA
+Off White: #F5F7F5
+Amber: #D99A35
+
+Status colors:
+Healthy = green
+Warning = amber/orange
+Critical Leak = red
+Inactive = gray
+Sensor = blue
+
+Typography:
+Headings: Manrope or DM Sans
+Body: Inter
+Numbers/data: Inter with tabular numerals
+
+Use red ONLY for critical leak states.
+
+==================================================
+AUTHENTICATION
+==================================================
+
+Create a login page.
+
+HydroGuard branding:
+
+HYDROGUARD
+Intelligent Water Pipeline Protection
+
+Tagline:
+
+Save Water. Save Energy. Save Future.
+
+Login options:
+
+1. Mobile number + OTP
+2. Email/mobile + password
+
+Buttons:
+
+Send OTP
+Login
+
+Links:
+
+Forgot Password?
+Register Now
+
+Registration fields:
+
+Full Name
+Mobile Number
+Email
+Password
+Confirm Password
+Role
+
+Roles:
+
+Water Champion
+Administrator
+
+After login, redirect based on role.
+
+Store authentication state properly.
+
+The frontend must communicate with the backend authentication APIs.
+
+==================================================
+MAIN NAVIGATION
+==================================================
+
+Desktop:
+Sidebar navigation.
+
+Mobile:
+Bottom navigation.
+
+Navigation:
+
+Home
+Alerts
+Pipeline Map
+Analytics
+Maintenance
+Water Champions
+Reports
+Profile
+Settings
+
+Use Lucide icons.
+
+==================================================
+DASHBOARD
+==================================================
+
+Create a professional HydroGuard dashboard.
+
+Header:
+
+Good Morning, [User Name]
+
+System Status:
+● All systems operational
+
+Top metrics:
+
+Total Pipeline Length
+24.6 km
+
+Active Flow Meters
+18
+
+Online Sensors
+16 / 18
+
+Active Alerts
+2
+
+Average Pressure
+3.2 bar
+
+Tank Level
+62%
+
+Water Loss
+8.4%
+
+Use compact metric sections rather than making everything giant cards.
+
+==================================================
+PIPELINE MAP
+==================================================
+
+Create a full Pipeline Map page.
+
+Use Leaflet + OpenStreetMap.
+
+Do NOT use a random fake map image.
+
+Display:
+
+Tanks
+Sensors
+Pipeline routes
+Leak zones
+Warning zones
+
+Legend:
+
+Green = Normal
+Orange = Warning
+Red = Leak Detected
+Gray = Inactive
+Blue = Sensor
+
+Display example tanks:
+
+Overhead Tank
+80%
+
+Ground Tank
+60%
+
+Hill Top Tank
+40%
+
+Display sensors:
+
+S1
+S2
+S3
+S4
+S5
+S6
+
+Use deterministic coordinates.
+
+Example pipeline:
+
+Zone 1 → Zone 2 → Zone 3 → Tank
+
+Pipeline status should be dynamically controlled by backend data.
+
+NORMAL:
+Green pipeline
+
+WARNING:
+Orange pipeline
+
+LEAK:
+Red pipeline
+
+INACTIVE:
+Gray pipeline
+
+When clicking a pipeline or sensor, show a popup.
+
+Example:
+
+Zone 2 – Main Road
+
+Status:
+LEAK DETECTED
+
+Flow:
+18.6 L/min
+
+Pressure:
+1.8 bar
+
+Detected:
+10:45 AM
+
+Alert:
+Possible pipeline leakage
+
+Show an "Active Alert" section below the map.
+
+==================================================
+LIVE SENSOR DATA
+==================================================
+
+Create a Sensor Monitoring section.
+
+Show:
+
+Sensor ID
+Location
+Flow Rate
+Pressure
+Tank Level
+Battery
+Status
+Last Updated
+
+Example:
+
+S1 | Zone 1 | 8.5 L/min | 3.2 bar | 78% | 92% | Online
+
+S2 | Zone 2 | 18.6 L/min | 1.8 bar | 62% | 91% | LEAK
+
+S3 | Zone 3 | 9.1 L/min | 3.0 bar | 60% | 87% | Online
+
+Data must come from the backend APIs.
+
+Refresh automatically every few seconds or use WebSocket if available.
+
+==================================================
+ALERTS PAGE
+==================================================
+
+Create an Alerts page.
+
+Tabs:
+
+All
+Critical
+Warning
+Resolved
+
+Each alert should show:
+
+Alert ID
+Zone
+Sensor
+Alert Type
+Flow
+Pressure
+Date/time
+Status
+Assigned Water Champion
+
+Example:
+
+ALERT-0021
+
+Possible Water Leakage
+
+Zone 2 – Main Road
+
+Flow:
+18.6 L/min
+
+Pressure:
+1.8 bar
+
+Status:
+ACTIVE
+
+Actions:
+
+Acknowledge
+Assign
+Start Maintenance
+Resolve
+
+Use confirmation dialogs.
+
+==================================================
+SMS NOTIFICATION
+==================================================
+
+Create an SMS notification section.
+
+The frontend must NOT send SMS directly.
+
+SMS must be handled by the backend.
+
+Create:
+
+SMS Settings
+
+Water Champion:
+[Name]
+
+Mobile Number:
++91 XXXXX XXXXX
+
+SMS Mode:
+
+Demo SMS
+Live SMS
+
+Show:
+
+SMS Provider:
+Twilio
+
+Status:
+Connected / Not Connected
+
+Create a "Send Test SMS" button.
+
+When clicked:
+
+Frontend → Backend → SMS service
+
+Never expose Twilio credentials in frontend code.
+
+Create SMS history:
+
+Recipient
+Alert
+Message
+Time
+Status
+
+Example:
+
++91XXXXXXXXXX
+ALERT-0021
+Water leakage detected
+10:46 AM
+SENT
+
+If backend is in Demo SMS Mode, display:
+
+DEMO SMS SENT
+
+Do NOT falsely claim that a real SMS was sent.
+
+==================================================
+SMS ALERT UI
+==================================================
+
+When a critical leak alert is created, show:
+
+🚨 Critical Water Alert
+
+Possible water leakage detected.
+
+Zone:
+Zone 2 – Main Road
+
+Flow:
+18.6 L/min
+
+Pressure:
+1.8 bar
+
+Water Champion:
+Assigned Champion
+
+SMS:
+Sending...
+
+Then:
+
+SMS Sent Successfully
+
+or:
+
+Demo SMS Sent
+
+==================================================
+ANALYTICS
+==================================================
+
+Create an Analytics page.
+
+Charts:
+
+1. Flow Rate Trend
+2. Pressure Trend
+3. Tank Level
+4. Daily Water Usage
+5. Estimated Water Loss
+6. Leak Events
+7. Sensor Uptime
+8. Maintenance Response Time
+
+Use Recharts.
+
+Provide:
+
+24 Hours
+7 Days
+30 Days
+
+filters.
+
+Charts should use backend data.
+
+==================================================
+PREDICTIVE MAINTENANCE
+==================================================
+
+Create a section:
+
+Rule-Based Predictive Maintenance Risk
+
+IMPORTANT:
+
+Do NOT call this AI or Machine Learning unless an actual ML model is implemented.
+
+Calculate risk based on:
+
+Pressure drops
+Flow anomalies
+Repeated alerts
+Sensor failures
+Maintenance history
+
+Risk levels:
+
+LOW
+MEDIUM
+HIGH
+CRITICAL
+
+Show explanation:
+
+"High risk due to repeated pressure drops and abnormal flow readings."
+
+==================================================
+MAINTENANCE
+==================================================
+
+Create Maintenance page.
+
+Show:
+
+Active Repairs
+Completed Repairs
+Pending Repairs
+
+Each maintenance record:
+
+Maintenance ID
+Pipeline
+Location
+Issue
+Assigned Champion
+Priority
+Started
+Completed
+Status
+
+Statuses:
+
+PENDING
+ASSIGNED
+IN PROGRESS
+COMPLETED
+
+Allow users to create and update maintenance records.
+
+==================================================
+WATER CHAMPIONS
+==================================================
+
+Create Water Champions page.
+
+Show:
+
+Name
+Phone
+Assigned Zone
+Status
+Active Alerts
+Completed Repairs
+Average Response Time
+
+Actions:
+
+Assign Alert
+View Profile
+View Maintenance History
+
+==================================================
+REPORTS
+==================================================
+
+Create Reports page.
+
+Reports:
+
+Water Usage
+Water Loss
+Leak Events
+Pipeline Health
+Sensor Health
+Maintenance Performance
+
+Allow date filters.
+
+Provide a Download Report button.
+
+==================================================
+PROFILE
+==================================================
+
+Show:
+
+Name
+Email
+Mobile Number
+Role
+Assigned Zone
+
+Allow editing profile information.
+
+==================================================
+SETTINGS
+==================================================
+
+Create:
+
+Alert Threshold Settings
+
+Flow warning threshold
+Flow leak threshold
+
+Pressure warning threshold
+Pressure critical threshold
+
+SMS settings
+
+Demo / Live SMS mode
+
+Device settings
+
+ESP32 device list
+
+User settings
+
+==================================================
+HARDWARE SIMULATION
+==================================================
+
+Create a page called:
+
+Hardware Simulation
+
+This is extremely important for the college demonstration.
+
+Buttons:
+
+NORMAL
+WARNING
+LEAK
+
+NORMAL example:
+
+Flow:
+8.5 L/min
+Pressure:
+3.2 bar
+
+WARNING:
+
+Flow:
+13.5 L/min
+Pressure:
+2.4 bar
+
+LEAK:
+
+Flow:
+18.6 L/min
+Pressure:
+1.8 bar
+
+When the user clicks LEAK:
+
+Frontend sends the data to:
+
+POST /api/sensor-data
+
+The backend must then:
+
+1. Store sensor reading
+2. Detect leak
+3. Create alert
+4. Update pipeline status
+5. Assign Water Champion
+6. Trigger SMS
+7. Return response
+
+The frontend should immediately show:
+
+Pipeline → RED
+
+Alert → ACTIVE
+
+SMS → SENDING / SENT / DEMO SENT
+
+==================================================
+REAL-TIME UPDATE
+==================================================
+
+Do not hardcode dashboard values.
+
+Use backend API calls.
+
+Recommended APIs:
+
+GET /api/dashboard
+GET /api/sensors
+GET /api/pipelines
+GET /api/readings
+GET /api/alerts
+GET /api/maintenance
+GET /api/water-champions
+GET /api/analytics
+
+POST /api/sensor-data
+
+POST /api/alerts/:id/acknowledge
+POST /api/alerts/:id/assign
+POST /api/alerts/:id/resolve
+
+POST /api/sms/test
+
+==================================================
+ERROR HANDLING
+==================================================
+
+Show useful errors.
+
+Examples:
+
+Backend unavailable
+SMS provider unavailable
+Invalid login
+Invalid sensor data
+SMS failed
+No internet connection
+
+Do not crash the application.
+
+==================================================
+RESPONSIVE DESIGN
+==================================================
+
+Desktop:
+Professional dashboard with sidebar.
+
+Tablet:
+Responsive layout.
+
+Mobile:
+Mobile-first interface.
+
+Mobile bottom navigation:
+
+Home
+Alerts
+Map
+Reports
+Profile
+
+==================================================
+FINAL REQUIREMENT
+==================================================
+
+The frontend must be completely connected to the backend APIs.
+
+Do NOT create fake buttons that do nothing.
+
+Every important action should call the backend.
+
+Do NOT put SMS credentials in the frontend.
+
+Do NOT claim SMS was sent unless the backend confirms it.
+
+Build the complete frontend now.

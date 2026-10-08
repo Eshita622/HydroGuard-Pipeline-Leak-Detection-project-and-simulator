@@ -1,0 +1,1246 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>HydroGuard Pipe Patrol & Repair Simulator</title>
+    <style>
+      :root {
+        --bg: #0a1b2a;
+        --panel: #10304a;
+        --panel-dark: #091e30;
+        --water: #3cc4f0;
+        --ok: #43a047;
+        --low: #f9c01f;
+        --mid: #f57c00;
+        --high: #e53935;
+        --ink: #eaf6ff;
+        --ink-dim: #94b8d6;
+        --border: #1a4263;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: "Trebuchet MS", "Segoe UI", Verdana, sans-serif;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        padding: 14px;
+      }
+      #game {
+        flex: 1 1 560px;
+        min-width: 320px;
+      }
+      #side {
+        flex: 0 0 300px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      h1 {
+        font-size: 20px;
+        margin: 0 0 4px;
+      }
+      .hint {
+        font-size: 13px;
+        color: var(--ink-dim);
+        margin: 0 0 10px;
+      }
+      
+      /* Toolbar & Tool toggle */
+      .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 6px 10px;
+        margin-bottom: 10px;
+      }
+      .tool-toggle {
+        display: flex;
+        background: var(--panel-dark);
+        border-radius: 8px;
+        padding: 3px;
+        gap: 4px;
+      }
+      .tool-btn {
+        background: transparent;
+        color: var(--ink-dim);
+        border: 0;
+        border-radius: 6px;
+        padding: 6px 12px;
+        font-size: 13px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .tool-btn:hover {
+        color: var(--ink);
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .tool-btn.active {
+        background: var(--water);
+        color: #06121c;
+        box-shadow: 0 2px 6px rgba(60, 196, 240, 0.35);
+      }
+      .tool-desc {
+        font-size: 12px;
+        color: var(--ink-dim);
+      }
+
+      svg {
+        width: 100%;
+        height: auto;
+        background: #0d2438;
+        border-radius: 14px;
+        display: block;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      }
+      .pipe {
+        fill: var(--ok);
+        stroke: #06121c;
+        stroke-width: 3;
+        transition: fill 0.3s;
+      }
+      .l1 .pipe {
+        fill: var(--low);
+      }
+      .l2 .pipe {
+        fill: var(--mid);
+      }
+      .l3 .pipe {
+        fill: var(--high);
+      }
+      .flow {
+        stroke: rgba(255, 255, 255, 0.7);
+        stroke-width: 4;
+        stroke-dasharray: 8 18;
+        animation: flow 0.8s linear infinite;
+        fill: none;
+      }
+      .l3 .flow {
+        animation-duration: 0.3s;
+      }
+      @keyframes flow {
+        to {
+          stroke-dashoffset: -26;
+        }
+      }
+      .zone {
+        cursor: pointer;
+      }
+      .zone:hover .pipe {
+        filter: brightness(1.25);
+      }
+      .crack {
+        stroke: #1b0d00;
+        stroke-width: 3;
+        fill: none;
+        opacity: 0;
+      }
+      .l1 .crack,
+      .l2 .crack,
+      .l3 .crack {
+        opacity: 1;
+      }
+      .l3 .crack {
+        stroke-width: 5;
+      }
+      .sensor {
+        fill: #fff;
+        stroke: #06121c;
+        stroke-width: 3;
+      }
+      .l1 .sensor {
+        fill: var(--low);
+      }
+      .l2 .sensor {
+        fill: var(--mid);
+      }
+      .l3 .sensor {
+        fill: var(--high);
+        animation: pulse 0.5s infinite alternate;
+      }
+      @keyframes pulse {
+        to {
+          r: 13;
+        }
+      }
+      .p {
+        fill: var(--water);
+        display: none;
+        animation: spurt 1s linear infinite;
+        animation-delay: var(--d);
+      }
+      .l1 .p1,
+      .l1 .p2,
+      .l2 .p1,
+      .l2 .p2,
+      .l2 .p3,
+      .l2 .p4,
+      .l3 .p {
+        display: block;
+      }
+      @keyframes spurt {
+        0% {
+          transform: translate(0, 0);
+        }
+        35% {
+          transform: translate(var(--dx), 6px);
+        }
+        100% {
+          transform: translate(calc(var(--dx) * 1.2), var(--dy));
+          opacity: 0;
+        }
+      }
+      .puddle {
+        fill: var(--water);
+        opacity: 0;
+        transition: all 0.4s;
+      }
+      .l1 .puddle {
+        opacity: 0.35;
+        transform: scaleX(0.5);
+      }
+      .l2 .puddle {
+        opacity: 0.5;
+        transform: scaleX(0.9);
+      }
+      .l3 .puddle {
+        opacity: 0.65;
+        transform: scaleX(1.5);
+      }
+      .puddle {
+        transform-box: fill-box;
+        transform-origin: left center;
+      }
+      .mainpipe {
+        fill: #2e7d32;
+        stroke: #06121c;
+        stroke-width: 3;
+      }
+      .flange {
+        fill: #1d3b52;
+        stroke: #06121c;
+        stroke-width: 2;
+      }
+      .zlabel {
+        font-size: 13px;
+        fill: var(--ink);
+        font-weight: bold;
+        pointer-events: none;
+      }
+      .hammer {
+        position: fixed;
+        font-size: 44px;
+        pointer-events: none;
+        transform: translate(-50%, -50%);
+        z-index: 99;
+      }
+      .hammer.swing {
+        animation: swing 0.25s;
+      }
+      @keyframes swing {
+        0% {
+          transform: translate(-50%, -50%) rotate(0);
+        }
+        40% {
+          transform: translate(-50%, -50%) rotate(-50deg);
+        }
+        100% {
+          transform: translate(-50%, -50%) rotate(0);
+        }
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px;
+      }
+      .card-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      .pill-sim {
+        font-size: 11px;
+        background: #0284c7;
+        color: #fff;
+        padding: 2px 7px;
+        border-radius: 10px;
+        font-weight: bold;
+      }
+      #chip {
+        font-size: 13px;
+        padding: 6px 10px;
+        border-radius: 20px;
+        background: #555;
+        display: inline-block;
+      }
+      #chip.ok {
+        background: #2e7d32;
+      }
+      #chip.bad {
+        background: #b71c1c;
+      }
+      
+      /* Water Loss Metrics Card */
+      .loss-metric {
+        margin-bottom: 8px;
+      }
+      .loss-label, .saving-label {
+        font-size: 11px;
+        color: var(--ink-dim);
+        letter-spacing: 0.5px;
+        display: block;
+      }
+      .loss-val b {
+        font-size: 24px;
+        color: #f87171;
+        font-family: monospace;
+      }
+      .saving-val b {
+        font-size: 18px;
+        color: #34d399;
+        font-family: monospace;
+      }
+      .zone-loss-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+        margin-top: 10px;
+        font-size: 11px;
+      }
+      .zone-loss-item {
+        background: var(--panel-dark);
+        padding: 4px 6px;
+        border-radius: 6px;
+        border: 1px solid rgba(255,255,255,0.05);
+      }
+      .zone-loss-item.active-leak {
+        border-color: #f87171;
+        background: rgba(239, 68, 68, 0.15);
+      }
+      .zone-loss-item .z-name {
+        color: var(--ink-dim);
+        display: block;
+      }
+      .zone-loss-item .z-val {
+        font-weight: bold;
+        font-family: monospace;
+      }
+
+      #log {
+        font: 12px/1.4 Consolas, monospace;
+        max-height: 140px;
+        overflow: auto;
+        white-space: pre-wrap;
+        background: var(--panel-dark);
+        padding: 8px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+      }
+      #phone {
+        background: #f4f4f4;
+        color: #111;
+        border-radius: 16px;
+        padding: 12px;
+        font-size: 13px;
+        transform: translateY(20px);
+        opacity: 0;
+        transition: 0.4s;
+        max-height: 0;
+        overflow: hidden;
+      }
+      #phone.show {
+        transform: none;
+        opacity: 1;
+        max-height: 300px;
+      }
+      #phone .bubble {
+        background: #dcf8c6;
+        border-radius: 10px;
+        padding: 8px;
+        margin-top: 6px;
+      }
+      button.btn-primary {
+        background: var(--water);
+        color: #06121c;
+        border: 0;
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: opacity 0.2s;
+      }
+      button.btn-primary:hover {
+        opacity: 0.9;
+      }
+      button.btn-secondary {
+        background: #1e3a5f;
+        color: var(--ink);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      button.btn-secondary:hover {
+        background: #274b7a;
+      }
+      .score {
+        display: flex;
+        gap: 8px;
+        font-size: 13px;
+      }
+      .score span {
+        background: #06121c;
+        padding: 4px 8px;
+        border-radius: 6px;
+      }
+
+      /* Repair Modal / Panel */
+      .repair-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(6, 18, 28, 0.75);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+      }
+      .repair-card {
+        background: #102a42;
+        border: 1px solid #255883;
+        border-radius: 16px;
+        padding: 20px;
+        width: 90%;
+        max-width: 440px;
+        box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+        animation: popin 0.2s ease-out;
+      }
+      @keyframes popin {
+        from { transform: scale(0.95); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+      }
+      .repair-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        padding-bottom: 12px;
+        margin-bottom: 14px;
+      }
+      .repair-head h3 {
+        margin: 4px 0 0;
+        font-size: 18px;
+        color: var(--ink);
+      }
+      .eyebrow {
+        font-size: 11px;
+        color: var(--water);
+        font-weight: bold;
+        letter-spacing: 0.8px;
+      }
+      .close-btn {
+        background: transparent;
+        color: var(--ink-dim);
+        border: 0;
+        font-size: 22px;
+        cursor: pointer;
+        line-height: 1;
+      }
+      .close-btn:hover {
+        color: #fff;
+      }
+      .auth-warning {
+        background: rgba(239, 68, 68, 0.2);
+        border: 1px solid #ef4444;
+        color: #fca5a5;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 12px;
+        margin-bottom: 12px;
+      }
+      .repair-stat-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        background: var(--panel-dark);
+        padding: 10px;
+        border-radius: 8px;
+        margin-bottom: 14px;
+      }
+      .repair-stat-row div span {
+        font-size: 10px;
+        color: var(--ink-dim);
+        display: block;
+      }
+      .repair-stat-row div b {
+        font-size: 12px;
+      }
+      .risk-pill {
+        padding: 2px 6px;
+        border-radius: 4px;
+        display: inline-block;
+        font-size: 11px;
+      }
+      .risk-low { background: #854d0e; color: #fef08a; }
+      .risk-medium { background: #9a3412; color: #fed7aa; }
+      .risk-high { background: #991b1b; color: #fecaca; }
+      .repair-section {
+        margin-bottom: 16px;
+      }
+      .repair-section label {
+        display: block;
+        font-size: 13px;
+        margin-bottom: 6px;
+        color: var(--ink-dim);
+      }
+      .form-select {
+        width: 100%;
+        background: var(--panel-dark);
+        color: var(--ink);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 13px;
+        outline: none;
+      }
+      .repair-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+      }
+      .repair-progress {
+        margin-top: 12px;
+        font-size: 12px;
+        color: var(--water);
+        font-family: Consolas, monospace;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game">
+      <h1>Pipe Patrol: Village Pipeline Simulator</h1>
+      <p class="hint">
+        Toggle between <b>Hammer</b> (to crack pipes and simulate leaks) and <b>Fix it</b> (to assign Water Champions and execute repairs).
+      </p>
+
+      <!-- Tool toggle -->
+      <div class="toolbar">
+        <div class="tool-toggle">
+          <button type="button" id="btnHammer" class="tool-btn active" onclick="setTool('hammer')">🔨 Hammer</button>
+          <button type="button" id="btnFix" class="tool-btn" onclick="setTool('fix')">🔧 Fix it</button>
+        </div>
+        <span id="toolModeDesc" class="tool-desc">Current mode: <b>Hammer</b> (click any pipe to crack)</span>
+      </div>
+
+      <svg
+        id="board"
+        viewBox="0 0 800 520"
+        role="img"
+        aria-label="Village pipeline with nine zones"
+      ></svg>
+    </div>
+
+    <div id="side">
+      <div class="card">
+        <div id="chip">Connecting…</div>
+        <div class="score" style="margin-top: 8px">
+          <span id="sLow">Low: 0</span><span id="sMid">Medium: 0</span
+          ><span id="sHigh">High: 0</span>
+        </div>
+      </div>
+
+      <!-- Water loss exposure counter -->
+      <div class="card">
+        <div class="card-title">
+          <b>Water loss estimate</b>
+          <span class="pill-sim">Simulated estimate</span>
+        </div>
+        <div class="loss-metric">
+          <span class="loss-label">EST. CUMULATIVE LOSS</span>
+          <div class="loss-val"><b id="totalLossDisplay">0.00</b> <small>Litres</small></div>
+        </div>
+        <div class="saving-metric">
+          <span class="saving-label">PROJECTED DELAY SAVING (360m)</span>
+          <div class="saving-val"><b id="projectedSavingDisplay">0.00</b> <small>L saved</small></div>
+        </div>
+        <div class="zone-loss-grid" id="zoneLossGrid"></div>
+      </div>
+
+      <div class="card">
+        <button class="btn-secondary" style="width:100%" onclick="resetAll()">Reset all zones</button>
+      </div>
+
+      <div id="phone"></div>
+
+      <div class="card">
+        <b>Server log</b>
+        <div id="log" style="margin-top:6px;"></div>
+      </div>
+    </div>
+
+    <!-- Hammer animation indicator -->
+    <div class="hammer" id="hammer" style="display: none">🔨</div>
+
+    <!-- Fix it / Repair Panel Modal -->
+    <div id="repairPanel" class="repair-modal" style="display: none;">
+      <div class="repair-card">
+        <div class="repair-head">
+          <div>
+            <span class="eyebrow" id="repairZoneEyebrow">ZONE REPAIR</span>
+            <h3 id="repairZoneTitle">Zone · Monitoring Point</h3>
+          </div>
+          <button class="close-btn" onclick="closeRepairPanel()">&times;</button>
+        </div>
+
+        <div id="repairAuthNotice" class="auth-warning" style="display: none;">
+          ⚠️ You are not signed in to HydroGuard. Assignment and repair endpoints require authentication. Please sign in at <code>/login</code> first.
+        </div>
+
+        <div class="repair-body">
+          <div class="repair-stat-row">
+            <div>
+              <span>Risk Level</span>
+              <b id="repairRiskBadge" class="risk-pill risk-low">-</b>
+            </div>
+            <div>
+              <span>Flow / Pressure</span>
+              <b id="repairFlowPressure">-</b>
+            </div>
+            <div>
+              <span>Active Duration</span>
+              <b id="repairActiveTime">-</b>
+            </div>
+          </div>
+
+          <div class="repair-section">
+            <label for="championSelect"><b>Available Water Champions</b></label>
+            <select id="championSelect" class="form-select">
+              <option value="">Loading champions…</option>
+            </select>
+          </div>
+
+          <div class="repair-actions">
+            <button id="btnAssignChamp" onclick="assignSelectedChampion()" class="btn-secondary">1. Assign</button>
+            <button id="btnMarkRepaired" onclick="markZoneRepaired()" class="btn-primary">2. Mark repaired</button>
+          </div>
+
+          <div id="repairProgressLog" class="repair-progress"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      /* ===== CONFIG ===== */
+      const API = location.protocol === "file:" ? "http://localhost:8000/api" : "/api";
+      const TOKEN = (() => {
+        try {
+          return localStorage.getItem("hg_access_token") || "";
+        } catch {
+          return "";
+        }
+      })();
+
+      let READINGS = [
+        { flow: 8.6, pressure: 3.0 },   // 0 normal
+        { flow: 13.5, pressure: 2.38 }, // 1 low
+        { flow: 16.5, pressure: 2.12 }, // 2 medium
+        { flow: 20.1, pressure: 1.8 },  // 3 high
+      ];
+      /* ================= */
+
+      const NS = "http://www.w3.org/2000/svg",
+        LABEL = ["Normal", "Low", "Medium", "High"];
+      const levels = Array(9).fill(0);
+      let zonePipelines = Array(9).fill(null);
+      let zoneSensors = Array(9).fill(null);
+      let zoneLabels = Array(9).fill(null);
+      let zoneLeakStartTimes = Array(9).fill(null);
+      let zoneCumulativeLitres = Array(9).fill(0);
+
+      let currentTool = "hammer"; // "hammer" | "fix"
+      let activeRepairZone = null;
+      let championsList = [];
+      let activeAlertsCache = [];
+
+      const $ = (id) => document.getElementById(id);
+      const el = (t, a = {}, p) => {
+        const e = document.createElementNS(NS, t);
+        for (const k in a) e.setAttribute(k, a[k]);
+        p && p.appendChild(e);
+        return e;
+      };
+
+      function log(m) {
+        const l = $("log");
+        l.textContent =
+          new Date().toLocaleTimeString() + "  " + m + "\n" + l.textContent;
+      }
+      function chip(t, c) {
+        const e = $("chip");
+        e.textContent = t;
+        e.className = c || "";
+      }
+
+      function setTool(tool) {
+        currentTool = tool;
+        $("btnHammer").className = "tool-btn" + (tool === "hammer" ? " active" : "");
+        $("btnFix").className = "tool-btn" + (tool === "fix" ? " active" : "");
+        $("toolModeDesc").innerHTML = tool === "hammer" 
+          ? "Current mode: <b>Hammer</b> (click any pipe to crack)" 
+          : "Current mode: <b>Fix it</b> (click a damaged pipe to repair & assign champions)";
+        log("Switched tool mode to: " + (tool === "hammer" ? "Hammer (Crack)" : "Fix it (Repair)"));
+      }
+
+      /* ---------- draw the village network once ---------- */
+      const svg = $("board"),
+        COLS = [230, 440, 650],
+        groups = [],
+        labels = [];
+      for (let z = 0; z < 9; z++) {
+        const col = Math.floor(z / 3),
+          row = z % 3,
+          x = COLS[col],
+          y = 105 + row * 120;
+        const g = el("g", { class: "zone l0" }, svg);
+        el("rect", { x: x - 15, y: y, width: 30, height: 120, rx: 4, class: "pipe" }, g);
+        el("line", { x1: x, y1: y + 4, x2: x, y2: y + 116, class: "flow" }, g);
+        el("rect", { x: x - 19, y: y + 116, width: 38, height: 8, rx: 2, class: "flange" }, g);
+        el("path", { d: `M${x + 15} ${y + 55} l-10 8 8 8 -12 8 6 8`, class: "crack" }, g);
+        el("ellipse", { cx: x + 40, cy: y + 112, rx: 28, ry: 5, class: "puddle" }, g);
+        for (let i = 1; i <= 6; i++) {
+          const p = el("circle", { cx: x + 16, cy: y + 62, r: 3 + (i % 3), class: `p p${i}` }, g);
+          p.style.setProperty("--d", i * 0.15 + "s");
+          p.style.setProperty("--dx", 6 + i * 3 + "px");
+          p.style.setProperty("--dy", 40 + i * 6 + "px");
+        }
+        el("circle", { cx: x, cy: y + 30, r: 9, class: "sensor" }, g);
+        labels.push(el("text", { x: x + 24, y: y + 22, class: "zlabel" }, g));
+        g.addEventListener("click", (e) => handleZoneClick(z, e));
+        groups.push(g);
+      }
+
+      // main line
+      el("rect", { x: 100, y: 81, width: 580, height: 28, rx: 6, class: "mainpipe" }, svg);
+      el("line", { x1: 110, y1: 95, x2: 670, y2: 95, class: "flow" }, svg);
+      COLS.forEach((x) =>
+        el("rect", { x: x - 19, y: 104, width: 38, height: 8, rx: 2, class: "flange" }, svg)
+      );
+
+      // tank
+      el("rect", { x: 20, y: 40, width: 100, height: 170, rx: 10, fill: "#1a4a6b", stroke: "#06121c", "stroke-width": 3 }, svg);
+      el("rect", { x: 26, y: 80, width: 88, height: 124, rx: 6, fill: "#3cc4f0", opacity: 0.8 }, svg);
+      el("rect", { x: 112, y: 76, width: 12, height: 38, rx: 2, class: "flange" }, svg);
+      el("text", { x: 70, y: 236, "text-anchor": "middle", class: "zlabel" }, svg).textContent = "Overhead tank";
+
+      /* ---------- backend connection ---------- */
+      const H = () =>
+        Object.assign(
+          { "Content-Type": "application/json" },
+          TOKEN ? { Authorization: "Bearer " + TOKEN } : {}
+        );
+
+      async function loadBackendData() {
+        try {
+          // 1. Profile
+          try {
+            const profRes = await fetch(API + "/simulation/profile", { headers: H() });
+            if (profRes.ok) {
+              const p = await profRes.json();
+              READINGS = [p.normal, p.low, p.medium, p.high];
+              log("Loaded simulation profile from backend");
+            }
+          } catch (pe) {
+            log("Simulation profile fallback: " + pe);
+          }
+
+          // 2. Pipelines & sensors
+          const [pipeRes, sensorRes] = await Promise.all([
+            fetch(API + "/pipelines", { headers: H() }),
+            fetch(API + "/sensors", { headers: H() }),
+          ]);
+          if (!pipeRes.ok || !sensorRes.ok) throw new Error("API error fetching network assets");
+          const pipelines = await pipeRes.json();
+          const sensors = await sensorRes.json();
+
+          for (let z = 0; z < 9; z++) {
+            const zoneNum = z + 1;
+            const zoneName = "Zone " + zoneNum;
+            const pipe = pipelines.find((p) => p.zone === zoneName) || pipelines[z % pipelines.length];
+            const pipeSensors = sensors.filter(
+              (s) => String(s.pipelineId || s.pipeline_id) === String(pipe?.id || pipe?.pipeline_id)
+            );
+            const flowSensor = pipeSensors.find(
+              (s) => String(s.sensor_type || s.sensorType || "").toUpperCase() === "FLOW"
+            ) || pipeSensors[0] || sensors[z % sensors.length];
+
+            zonePipelines[z] = pipe;
+            zoneSensors[z] = flowSensor;
+            const locName = flowSensor?.location || pipe?.location || ("monitoring point " + zoneNum);
+            zoneLabels[z] = zoneName + " · " + locName;
+          }
+
+          chip("Connected · 9 zones ready", "ok");
+          log("Loaded 9 zones and dedicated sensors from backend");
+          paint();
+          fetchWaterChampions();
+        } catch (e) {
+          chip("Backend offline / demo mode", "bad");
+          log("Backend sync note: " + e);
+          for (let z = 0; z < 9; z++) {
+            zoneLabels[z] = "Zone " + (z + 1) + " · monitoring point " + (z + 1);
+          }
+          paint();
+        }
+      }
+
+      async function fetchWaterChampions() {
+        try {
+          const res = await fetch(API + "/water-champions", { headers: H() });
+          if (res.ok) {
+            championsList = await res.json();
+          }
+        } catch (e) {
+          console.warn("Could not load champions:", e);
+        }
+      }
+
+      async function fetchActiveAlerts() {
+        try {
+          const res = await fetch(API + "/alerts", { headers: H() });
+          if (res.ok) {
+            const list = await res.json();
+            activeAlertsCache = list.filter((a) => a.status !== "resolved");
+          }
+        } catch (e) {
+          console.warn("Could not load alerts:", e);
+        }
+      }
+
+      async function send(z) {
+        const s = zoneSensors[z] || { id: z + 1, sensor_code: "S" + (z + 1) };
+        const pipe = zonePipelines[z] || { id: z + 1 };
+        const r = READINGS[levels[z]];
+        const sensorId = s.sensor_code || s.sensorId || s.id;
+        const pipelineId = pipe.id || pipe.pipeline_id;
+
+        const body = {
+          sensorId: sensorId,
+          sensor_id: sensorId,
+          pipelineId: pipelineId,
+          pipeline_id: pipelineId,
+          flow: r.flow,
+          flowRate: r.flow,
+          flow_rate: r.flow,
+          flowLpm: r.flow,
+          pressure: r.pressure,
+          pressureBar: r.pressure,
+          tankLevel: 70,
+          tank_level: 70,
+          tankLevelPercent: 70,
+          batteryLevel: 90,
+          battery_level: 90,
+          deviceId: "SIMULATION",
+          device_id: "SIMULATION",
+          source: "SIMULATED",
+          simulatorId: "pipe-patrol-simulator",
+        };
+        try {
+          const res = await fetch(API + "/sensor-data", {
+            method: "POST",
+            headers: H(),
+            body: JSON.stringify(body),
+          });
+          const resJson = await res.json();
+          log(
+            `Zone ${z + 1} (${sensorId}) L${levels[z]} → HTTP ${res.status} [${resJson.classification || "OK"}]`
+          );
+          chip(
+            res.ok ? "Connected · last send OK" : "Server rejected data (see log)",
+            res.ok ? "ok" : "bad"
+          );
+          return resJson;
+        } catch (e) {
+          log("Send failed: " + e);
+          chip("Backend not reachable", "bad");
+          return null;
+        }
+      }
+
+      /* ---------- game / click handling ---------- */
+      function paint() {
+        groups.forEach((g, i) => {
+          g.setAttribute("class", "zone l" + levels[i]);
+          
+          const baseLabel = zoneLabels[i] || ("Zone " + (i + 1));
+          const parts = baseLabel.split(" · ");
+          const line1 = parts[0] + (parts[1] ? " · " + parts[1] : "");
+          const line2 = (parts.length > 2 ? parts.slice(2).join(" · ") + " · " : "") + LABEL[levels[i]];
+          
+          labels[i].innerHTML = "";
+          
+          const xPos = labels[i].getAttribute("x");
+          
+          const t1 = document.createElementNS(NS, "tspan");
+          t1.setAttribute("x", xPos);
+          t1.setAttribute("dy", "0");
+          t1.textContent = line1;
+          
+          const t2 = document.createElementNS(NS, "tspan");
+          t2.setAttribute("x", xPos);
+          t2.setAttribute("dy", "16");
+          t2.style.fontSize = "11px";
+          t2.style.fill = "var(--ink-dim)";
+          t2.textContent = line2;
+          
+          labels[i].appendChild(t1);
+          labels[i].appendChild(t2);
+        });
+        [
+          ["sLow", "Low", 1],
+          ["sMid", "Medium", 2],
+          ["sHigh", "High", 3],
+        ].forEach(
+          ([id, n, k]) =>
+            ($(id).textContent = n + ": " + levels.filter((v) => v === k).length)
+        );
+      }
+
+      async function handleZoneClick(z, ev) {
+        if (currentTool === "hammer") {
+          await hit(z, ev);
+        } else {
+          openRepairPanel(z);
+        }
+      }
+
+      async function hit(z, ev) {
+        swing(ev);
+        if (levels[z] >= 3) return;
+        levels[z]++;
+        if (levels[z] === 1 && !zoneLeakStartTimes[z]) {
+          zoneLeakStartTimes[z] = Date.now();
+        }
+        paint();
+        const resData = await send(z);
+        if (levels[z] === 3 || resData?.riskLevel === "high" || resData?.mockSms) {
+          showMockSms(resData, z);
+        }
+      }
+
+      /* ---------- Fix it mode: Repair Modal & Flow ---------- */
+      async function openRepairPanel(z) {
+        activeRepairZone = z;
+        const panel = $("repairPanel");
+        const pipe = zonePipelines[z];
+        const sensor = zoneSensors[z];
+        const lvl = levels[z];
+
+        if (lvl === 0) {
+          log(`Zone ${z + 1} is healthy (Normal). Switch to Hammer to simulate a crack.`);
+          chip(`Zone ${z + 1} is healthy (Normal)`, "ok");
+          return;
+        }
+
+        panel.style.display = "flex";
+        $("repairZoneEyebrow").textContent = `ZONE ${z + 1} REPAIR PANEL`;
+        $("repairZoneTitle").textContent = zoneLabels[z] || `Zone ${z + 1}`;
+        $("repairProgressLog").textContent = "";
+
+        const authNotice = $("repairAuthNotice");
+        if (!TOKEN) {
+          authNotice.style.display = "block";
+          log("Notice: User not signed in. API calls may return 401.");
+        } else {
+          authNotice.style.display = "none";
+        }
+
+        const riskBadge = $("repairRiskBadge");
+        const riskClass = lvl === 3 ? "risk-high" : lvl === 2 ? "risk-medium" : "risk-low";
+        riskBadge.className = `risk-pill ${riskClass}`;
+        riskBadge.textContent = LABEL[lvl] + " Risk";
+
+        const currentReading = READINGS[lvl] || { flow: 13.5, pressure: 2.38 };
+        $("repairFlowPressure").textContent = `${currentReading.flow} L/min · ${currentReading.pressure} bar`;
+
+        const secondsActive = zoneLeakStartTimes[z] ? Math.floor((Date.now() - zoneLeakStartTimes[z]) / 1000) : 0;
+        $("repairActiveTime").textContent = `${secondsActive}s active`;
+
+        // Refresh champions & active alerts
+        await Promise.all([fetchWaterChampions(), fetchActiveAlerts()]);
+
+        const select = $("championSelect");
+        select.innerHTML = "";
+        if (!championsList.length) {
+          select.innerHTML = '<option value="">No champions available</option>';
+        } else {
+          // Sort champions by matching zone or availability
+          championsList.forEach((c) => {
+            const opt = document.createElement("option");
+            opt.value = c.id;
+            const isMatch = (c.assignedZone || c.assigned_zone) === ("Zone " + (z + 1));
+            const statusStr = (c.availability_status || c.status || "AVAILABLE").toUpperCase();
+            opt.textContent = `${c.name} (${statusStr} · ${c.assignedZone || c.assigned_zone || "Unassigned"})${isMatch ? " ★ Zone Match" : ""}`;
+            select.appendChild(opt);
+          });
+        }
+      }
+
+      function closeRepairPanel() {
+        $("repairPanel").style.display = "none";
+        activeRepairZone = null;
+      }
+
+      function findActiveAlertForZone(z) {
+        const pipe = zonePipelines[z];
+        const sensor = zoneSensors[z];
+        const pipeId = pipe ? String(pipe.id || pipe.pipeline_id) : null;
+        const sensorCode = sensor ? (sensor.sensor_code || sensor.sensorId || sensor.id) : null;
+
+        return activeAlertsCache.find((a) => {
+          return (
+            (pipeId && String(a.pipeline_id || a.pipelineId) === pipeId) ||
+            (sensorCode && String(a.sensor_id || a.sensorId) === String(sensorCode)) ||
+            (a.simulated && a.status !== "resolved")
+          );
+        });
+      }
+
+      async function assignSelectedChampion() {
+        const z = activeRepairZone;
+        if (z === null) return;
+        const champId = $("championSelect").value;
+        if (!champId) {
+          alert("Please select a Water Champion to assign.");
+          return;
+        }
+
+        const alertItem = findActiveAlertForZone(z);
+        if (!alertItem) {
+          log(`Notice: No registered active alert found for Zone ${z + 1}.`);
+          $("repairProgressLog").textContent = "No server alert found to assign.";
+          return;
+        }
+
+        try {
+          $("repairProgressLog").textContent = `Assigning Champion #${champId} to Alert #${alertItem.id}…`;
+          const res = await fetch(`${API}/alerts/${alertItem.id}/assign`, {
+            method: "POST",
+            headers: H(),
+            body: JSON.stringify({ championId: Number(champId), assignee_id: Number(champId) }),
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+          const assignedAlert = await res.json();
+          log(`[Assign] Champion assigned to Alert #${alertItem.id} -> Status: ${assignedAlert.status || 'ASSIGNED'}`);
+          $("repairProgressLog").textContent = `✓ Assigned to ${assignedAlert.championName || 'Champion'}`;
+          $("btnAssignChamp").textContent = "1. Assigned ✓";
+          await fetchWaterChampions();
+        } catch (e) {
+          log(`[Assign Error] ${e.message}`);
+          $("repairProgressLog").textContent = `Error: ${e.message}`;
+          if (!TOKEN) $("repairAuthNotice").style.display = "block";
+        }
+      }
+
+      async function markZoneRepaired() {
+        const z = activeRepairZone;
+        if (z === null) return;
+        const champId = $("championSelect").value;
+        const pipe = zonePipelines[z];
+        const sensor = zoneSensors[z];
+        const alertItem = findActiveAlertForZone(z);
+
+        $("repairProgressLog").textContent = "Starting repair workflow (Assign -> Ack -> Resolve -> Normal)…";
+
+        try {
+          // 1. Assign (if alert exists and not yet assigned)
+          if (alertItem && champId) {
+            log(`[Step 1/4] Assigning champion #${champId} to Alert #${alertItem.id}`);
+            await fetch(`${API}/alerts/${alertItem.id}/assign`, {
+              method: "POST",
+              headers: H(),
+              body: JSON.stringify({ championId: Number(champId), assignee_id: Number(champId) }),
+            });
+          }
+
+          // 2. Acknowledge
+          if (alertItem) {
+            log(`[Step 2/4] Acknowledging Alert #${alertItem.id}`);
+            await fetch(`${API}/alerts/${alertItem.id}/acknowledge`, {
+              method: "POST",
+              headers: H(),
+            });
+          }
+
+          // 3. Resolve
+          if (alertItem) {
+            log(`[Step 3/4] Resolving Alert #${alertItem.id}`);
+            await fetch(`${API}/alerts/${alertItem.id}/resolve`, {
+              method: "POST",
+              headers: H(),
+            });
+          }
+
+          // 4. Post NORMAL reading with deviceId: "SIMULATION"
+          log(`[Step 4/4] Sending NORMAL profile reading for Zone ${z + 1}`);
+          const normalReading = READINGS[0] || { flow: 8.6, pressure: 3.0 };
+          const sensorId = sensor ? (sensor.sensor_code || sensor.sensorId || sensor.id) : `S${z + 1}`;
+          const pipelineId = pipe ? (pipe.id || pipe.pipeline_id) : (z + 1);
+
+          await fetch(API + "/sensor-data", {
+            method: "POST",
+            headers: H(),
+            body: JSON.stringify({
+              sensorId: sensorId,
+              sensor_id: sensorId,
+              pipelineId: pipelineId,
+              pipeline_id: pipelineId,
+              flow: normalReading.flow,
+              flow_rate: normalReading.flow,
+              pressure: normalReading.pressure,
+              tank_level: 70,
+              battery_level: 95,
+              deviceId: "SIMULATION",
+              device_id: "SIMULATION",
+              source: "SIMULATED",
+              simulatorId: "pipe-patrol-simulator",
+            }),
+          });
+
+          // Reset local zone state to 0 (green)
+          levels[z] = 0;
+          zoneLeakStartTimes[z] = null;
+          paint();
+
+          log(`✓ Zone ${z + 1} repair complete! Pipeline restored to Normal (green).`);
+          chip(`Zone ${z + 1} repaired & normal`, "ok");
+          $("repairProgressLog").textContent = "✓ Repaired! Restored to Normal.";
+
+          setTimeout(() => {
+            closeRepairPanel();
+          }, 800);
+        } catch (e) {
+          log(`[Repair Error] ${e.message}`);
+          $("repairProgressLog").textContent = `Repair failed: ${e.message}`;
+          if (!TOKEN) $("repairAuthNotice").style.display = "block";
+        }
+      }
+
+      function showMockSms(resData, z) {
+        const p = $("phone");
+        const msg = resData?.mockSms?.message || resData?.alert?.mockSmsMessage || "";
+        const pipe = zonePipelines[z];
+        const s = zoneSensors[z];
+        const flowVal = READINGS[levels[z]] ? READINGS[levels[z]].flow : 20.1;
+        const zoneTitle = pipe?.zone || ("Zone " + (z + 1));
+        const locTitle = s?.location || pipe?.location || ("monitoring point " + (z + 1));
+        const fallbackMsg = `HYDROGUARD Alert: Possible WATER LEAKAGE detected!\nLocation: ${zoneTitle} · ${locTitle}\nAbnormal Flow: ${flowVal} L/min (High)\nTime: ${new Date().toISOString()}\nAction: Please inspect and take necessary action.\n– HydroGuard Team`;
+        const content = (msg || fallbackMsg).replace(/\n/g, "<br>");
+        p.innerHTML = `<b>HydroGuard</b> <small style="background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:4px;font-weight:bold;">MOCK SMS ONLY</small>
+  <div class="bubble">${content}</div>`;
+        p.classList.remove("show");
+        void p.offsetWidth;
+        p.classList.add("show");
+        log("Mock SMS displayed for " + zoneTitle);
+      }
+
+      async function resetAll() {
+        try {
+          const res = await fetch(API + "/simulation/reset", {
+            method: "POST",
+            headers: H(),
+            body: JSON.stringify({ simulatorId: "pipe-patrol-simulator" }),
+          });
+          const data = await res.json();
+          log(`Reset simulation: ${data.message || "OK"}`);
+        } catch (e) {
+          log("Reset request note: " + e);
+        }
+        for (let z = 0; z < 9; z++) {
+          levels[z] = 0;
+          zoneLeakStartTimes[z] = null;
+          zoneCumulativeLitres[z] = 0;
+        }
+        paint();
+        $("phone").classList.remove("show");
+        chip("All 9 zones normal", "ok");
+        log("All 9 zones reset to normal");
+      }
+
+      function swing(ev) {
+        const h = $("hammer");
+        h.style.display = "block";
+        h.style.left = ev.clientX + "px";
+        h.style.top = ev.clientY + "px";
+        h.classList.remove("swing");
+        void h.offsetWidth;
+        h.classList.add("swing");
+        setTimeout(() => (h.style.display = "none"), 300);
+      }
+
+      /* ---------- Live Water Loss Ticker (every 1 second) ---------- */
+      setInterval(() => {
+        let totalLost = 0;
+        let totalProjectedSaving = 0;
+        const ASSUMED_DELAY_MINUTES = 360;
+        const normalFlow = READINGS[0]?.flow || 8.6;
+
+        const grid = $("zoneLossGrid");
+        let gridHtml = "";
+
+        for (let z = 0; z < 9; z++) {
+          const lvl = levels[z];
+          if (lvl > 0) {
+            const currentFlow = READINGS[lvl]?.flow || normalFlow;
+            const deltaFlow = Math.max(0, currentFlow - normalFlow); // L/min
+            const litresThisSec = deltaFlow / 60.0;
+            zoneCumulativeLitres[z] += litresThisSec;
+          }
+          const zLoss = zoneCumulativeLitres[z];
+          totalLost += zLoss;
+
+          // Projected savings: what would have been lost in 360 mins - actual loss
+          if (lvl > 0) {
+            const currentFlow = READINGS[lvl]?.flow || normalFlow;
+            const deltaFlow = Math.max(0, currentFlow - normalFlow);
+            const manualLoss = deltaFlow * ASSUMED_DELAY_MINUTES;
+            totalProjectedSaving += Math.max(0, manualLoss - zLoss);
+          }
+
+          gridHtml += `<div class="zone-loss-item ${lvl > 0 ? "active-leak" : ""}">
+            <span class="z-name">Z${z + 1}</span>
+            <span class="z-val">${zLoss.toFixed(1)}L</span>
+          </div>`;
+        }
+
+        $("totalLossDisplay").textContent = totalLost.toFixed(2);
+        $("projectedSavingDisplay").textContent = totalProjectedSaving.toFixed(1);
+        if (grid) grid.innerHTML = gridHtml;
+      }, 1000);
+
+      paint();
+      loadBackendData();
+    </script>
+  </body>
+</html>

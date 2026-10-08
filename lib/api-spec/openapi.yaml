@@ -1,0 +1,875 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.2.0
+  description: HydroGuard water pipeline monitoring and demonstration API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Account registration and session operations
+  - name: monitoring
+    description: Dashboard, pipeline, sensor, and analytics data
+  - name: alerts
+    description: Leak and warning alert operations
+  - name: maintenance
+    description: Repair work tracking
+  - name: champions
+    description: Water Champion directory
+  - name: notifications
+    description: Mock notification log
+  - name: reports
+    description: Exportable operational reports
+  - name: account
+    description: User profile and system settings
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /auth/session:
+    get:
+      operationId: getAuthSession
+      tags: [auth]
+      summary: Get the signed-in user
+      responses:
+        "200":
+          description: Current account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "401":
+          description: No active session
+    delete:
+      operationId: logoutUser
+      tags: [auth]
+      summary: End the current session
+      responses:
+        "204":
+          description: Session ended
+  /auth/register:
+    post:
+      operationId: registerUser
+      tags: [auth]
+      summary: Register an account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: Account created and signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "400":
+          description: Invalid registration details
+        "409":
+          description: Email or mobile number already registered
+  /auth/login:
+    post:
+      operationId: loginUser
+      tags: [auth]
+      summary: Sign in with email or mobile and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Signed-in account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "401":
+          description: Invalid credentials
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [monitoring]
+      summary: Get operational dashboard data
+      responses:
+        "200":
+          description: Current water system overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+  /sensors:
+    get:
+      operationId: getSensors
+      tags: [monitoring]
+      summary: List current sensor states
+      responses:
+        "200":
+          description: Sensor readings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Sensor"
+  /pipelines:
+    get:
+      operationId: getPipelines
+      tags: [monitoring]
+      summary: Get pipeline routes and map features
+      responses:
+        "200":
+          description: Pipeline map data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Pipeline"
+  /sensor-data:
+    post:
+      operationId: submitSensorReading
+      tags: [monitoring]
+      summary: Submit a sensor reading and run alert rules
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SensorReadingInput"
+      responses:
+        "201":
+          description: Reading stored and rules evaluated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulationResult"
+        "400":
+          description: Invalid sensor data
+  /alerts:
+    get:
+      operationId: getAlerts
+      tags: [alerts]
+      summary: List system alerts
+      responses:
+        "200":
+          description: Alerts ordered by latest activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Alert"
+  /sms-log:
+    get:
+      operationId: getSmsLog
+      tags: [notifications]
+      summary: List mock SMS messages created by alert processing
+      responses:
+        "200":
+          description: Newest mock SMS entries first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SmsLogEntry"
+  /alerts/{id}/acknowledge:
+    post:
+      operationId: acknowledgeAlert
+      tags: [alerts]
+      summary: Acknowledge an alert
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated alert
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Alert"
+        "404":
+          description: Alert not found
+  /alerts/{id}/assign:
+    post:
+      operationId: assignAlert
+      tags: [alerts]
+      summary: Assign an alert to a Water Champion
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlertAssignmentInput"
+      responses:
+        "200":
+          description: Updated alert
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Alert"
+        "404":
+          description: Alert or Water Champion not found
+  /alerts/{id}/resolve:
+    post:
+      operationId: resolveAlert
+      tags: [alerts]
+      summary: Resolve an active alert
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Resolved alert
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Alert"
+        "404":
+          description: Alert not found
+  /alerts/{id}/maintenance:
+    post:
+      operationId: startAlertMaintenance
+      tags: [alerts]
+      summary: Create a repair from an alert
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlertMaintenanceInput"
+      responses:
+        "201":
+          description: Maintenance record created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaintenanceRecord"
+        "404":
+          description: Alert not found
+  /maintenance:
+    get:
+      operationId: getMaintenance
+      tags: [maintenance]
+      summary: List maintenance records
+      responses:
+        "200":
+          description: Repair records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MaintenanceRecord"
+    post:
+      operationId: createMaintenance
+      tags: [maintenance]
+      summary: Create a maintenance record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MaintenanceInput"
+      responses:
+        "201":
+          description: Created maintenance record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaintenanceRecord"
+  /maintenance/{id}:
+    patch:
+      operationId: updateMaintenance
+      tags: [maintenance]
+      summary: Update a maintenance record
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MaintenanceUpdate"
+      responses:
+        "200":
+          description: Updated maintenance record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaintenanceRecord"
+        "404":
+          description: Maintenance record not found
+  /water-champions:
+    get:
+      operationId: getWaterChampions
+      tags: [champions]
+      summary: List Water Champions and their workload
+      responses:
+        "200":
+          description: Water Champion directory
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WaterChampion"
+  /analytics:
+    get:
+      operationId: getAnalytics
+      tags: [monitoring]
+      summary: Get chart series for an interval
+      parameters:
+        - in: query
+          name: range
+          required: false
+          schema:
+            type: string
+            enum: [24h, 7d, 30d]
+            default: 24h
+      responses:
+        "200":
+          description: Time series and system health metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Analytics"
+  /reports:
+    get:
+      operationId: getReport
+      tags: [reports]
+      summary: Get report rows for export
+      parameters:
+        - in: query
+          name: type
+          required: true
+          schema:
+            type: string
+            enum: [water-usage, water-loss, leak-events, pipeline-health, sensor-health, maintenance]
+        - in: query
+          name: from
+          required: true
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: to
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Report rows and metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportData"
+  /profile:
+    get:
+      operationId: getProfile
+      tags: [account]
+      summary: Get current user's profile
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+    patch:
+      operationId: updateProfile
+      tags: [account]
+      summary: Update current user's profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileUpdate"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+  /settings:
+    get:
+      operationId: getSettings
+      tags: [account]
+      summary: Get alert and device settings
+      responses:
+        "200":
+          description: Current system settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemSettings"
+    patch:
+      operationId: updateSettings
+      tags: [account]
+      summary: Update alert settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettingsUpdate"
+      responses:
+        "200":
+          description: Updated system settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemSettings"
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    UserProfile:
+      type: object
+      required: [id, fullName, email, mobile, role, assignedZone]
+      properties:
+        id: { type: string }
+        fullName: { type: string }
+        email: { type: string }
+        mobile: { type: string }
+        role: { type: string, enum: [administrator, water-champion] }
+        assignedZone: { type: string }
+    AuthSession:
+      type: object
+      required: [user]
+      properties:
+        user:
+          $ref: "#/components/schemas/UserProfile"
+    RegisterInput:
+      type: object
+      required: [fullName, mobile, email, password, role]
+      properties:
+        fullName: { type: string, minLength: 2, maxLength: 120 }
+        mobile: { type: string, minLength: 8, maxLength: 24 }
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+        role: { type: string, enum: [administrator, water-champion] }
+    LoginInput:
+      type: object
+      required: [identifier, password]
+      properties:
+        identifier: { type: string, minLength: 3 }
+        password: { type: string, minLength: 1 }
+    Dashboard:
+      type: object
+      required: [systemStatus, metrics, recentAlerts, risk]
+      properties:
+        systemStatus: { type: string, enum: [operational, attention, critical] }
+        metrics:
+          type: object
+          required: [pipelineLengthKm, activeFlowMeters, onlineSensors, totalSensors, activeAlerts, averagePressureBar, tankLevelPercent, waterLossPercent, lowRiskAlerts, mediumRiskAlerts, highRiskAlerts, simulatedActiveAlerts, fieldActiveAlerts]
+          properties:
+            pipelineLengthKm: { type: number }
+            activeFlowMeters: { type: integer }
+            onlineSensors: { type: integer }
+            totalSensors: { type: integer }
+            activeAlerts: { type: integer }
+            averagePressureBar: { type: number }
+            tankLevelPercent: { type: number }
+            waterLossPercent: { type: number }
+            lowRiskAlerts: { type: integer }
+            mediumRiskAlerts: { type: integer }
+            highRiskAlerts: { type: integer }
+            simulatedActiveAlerts: { type: integer }
+            fieldActiveAlerts: { type: integer }
+        recentAlerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Alert"
+        risk:
+          $ref: "#/components/schemas/MaintenanceRisk"
+        updatedAt: { type: string, format: date-time }
+    Sensor:
+      type: object
+      required: [id, sensorId, location, flowLpm, pressureBar, tankLevelPercent, batteryPercent, status, lastUpdated]
+      properties:
+        id: { type: string }
+        sensorId: { type: string }
+        location: { type: string }
+        flowLpm: { type: number }
+        pressureBar: { type: number }
+        tankLevelPercent: { type: number }
+        batteryPercent: { type: number }
+        status: { type: string, enum: [online, warning, leak, inactive] }
+        lastUpdated: { type: string, format: date-time }
+        pipelineId: { type: string }
+        pipelineCode: { type: string }
+        zone: { type: string }
+        source: { type: string, enum: [field, simulator] }
+        readingSource: { type: string, enum: [field, simulator] }
+        statusSource: { type: string, enum: [field, simulator] }
+        simulated: { type: boolean }
+        riskLevel: { type: ["string", "null"], enum: [low, medium, high, null] }
+    Pipeline:
+      type: object
+      required: [id, name, status, coordinates, location]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        location: { type: string }
+        status: { type: string, enum: [normal, warning, leak, inactive] }
+        source: { type: string, enum: [field, simulator] }
+        simulated: { type: boolean }
+        flowLpm: { type: number }
+        pressureBar: { type: number }
+        detectedAt: { type: ["string", "null"], format: date-time }
+        coordinates:
+          type: array
+          items:
+            type: array
+            items: { type: number }
+            minItems: 2
+            maxItems: 2
+        tanks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Tank"
+        sensors:
+          type: array
+          items:
+            $ref: "#/components/schemas/MapSensor"
+    Tank:
+      type: object
+      required: [name, levelPercent, coordinates]
+      properties:
+        name: { type: string }
+        levelPercent: { type: number }
+        coordinates:
+          type: array
+          items: { type: number }
+          minItems: 2
+          maxItems: 2
+    MapSensor:
+      type: object
+      required: [sensorId, status, coordinates]
+      properties:
+        sensorId: { type: string }
+        status: { type: string, enum: [online, warning, leak, inactive] }
+        coordinates:
+          type: array
+          items: { type: number }
+          minItems: 2
+          maxItems: 2
+        location: { type: string }
+        source: { type: string, enum: [field, simulator] }
+        simulated: { type: boolean }
+    SensorReadingInput:
+      type: object
+      required: [sensorId, flowLpm, pressureBar, tankLevelPercent]
+      properties:
+        sensorId: { type: string }
+        flowLpm: { type: number, minimum: 0, maximum: 500 }
+        pressureBar: { type: number, minimum: 0, maximum: 20 }
+        tankLevelPercent: { type: number, minimum: 0, maximum: 100 }
+        deviceId: { type: string, maxLength: 80 }
+        simulatorId: { type: string, maxLength: 64 }
+    SimulationResult:
+      type: object
+      required: [reading, pipelineStatus, alertStatus, classification, notificationsStatus, message]
+      properties:
+        reading:
+          $ref: "#/components/schemas/Sensor"
+        pipelineStatus: { type: string, enum: [normal, warning, leak, inactive] }
+        alertStatus: { type: ["string", "null"], enum: [active, acknowledged, assigned, in_progress, resolved, null] }
+        classification: { type: string, enum: [NORMAL, WARNING, LEAK] }
+        alert:
+          anyOf:
+            - $ref: "#/components/schemas/Alert"
+            - type: "null"
+        notificationsStatus: { type: string, enum: [disabled, mock_sent] }
+        riskLevel: { type: string, enum: [none, low, medium, high] }
+        source: { type: string, enum: [field, simulator] }
+        simulated: { type: boolean }
+        mockSms:
+          anyOf:
+            - $ref: "#/components/schemas/SmsLogEntry"
+            - type: "null"
+        message: { type: string }
+    Alert:
+      type: object
+      required: [id, zone, location, sensorId, type, severity, flowLpm, pressureBar, createdAt, status, championName, message]
+      properties:
+        id: { type: string }
+        zone: { type: string }
+        location: { type: string }
+        sensorId: { type: string }
+        type: { type: string }
+        severity: { type: string, enum: [critical, warning, resolved] }
+        flowLpm: { type: number }
+        pressureBar: { type: number }
+        createdAt: { type: string, format: date-time }
+        status: { type: string, enum: [active, acknowledged, assigned, in_progress, resolved] }
+        championName: { type: string }
+        message: { type: string }
+        championId: { type: ["string", "null"] }
+        riskLevel: { type: ["string", "null"], enum: [low, medium, high, null] }
+        riskTitle: { type: ["string", "null"] }
+        source: { type: string, enum: [field, simulator] }
+        simulated: { type: boolean }
+        simulatorId: { type: ["string", "null"] }
+        mockSmsMessage: { type: ["string", "null"] }
+    SmsLogEntry:
+      type: object
+      required: [id, recipient, message, zone, riskLevel, source, simulated, createdAt, alertId]
+      properties:
+        id: { type: integer }
+        alertId: { type: string }
+        recipient: { type: ["string", "null"] }
+        message: { type: string }
+        zone: { type: string }
+        riskLevel: { type: string, enum: [low, medium, high] }
+        source: { type: string, enum: [field, simulator] }
+        simulated: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    AlertAssignmentInput:
+      type: object
+      required: [championId]
+      properties:
+        championId: { type: string }
+    AlertMaintenanceInput:
+      type: object
+      properties:
+        championId: { type: ["string", "null"] }
+        priority: { type: string, enum: [low, medium, high, critical] }
+    MaintenanceInput:
+      type: object
+      required: [pipeline, location, issue, priority]
+      properties:
+        pipeline: { type: string }
+        location: { type: string }
+        issue: { type: string }
+        championId: { type: ["string", "null"] }
+        priority: { type: string, enum: [low, medium, high, critical] }
+        status: { type: string, enum: [pending, assigned, in-progress, completed] }
+        alertId: { type: ["string", "null"] }
+    MaintenanceUpdate:
+      type: object
+      properties:
+        championId: { type: ["string", "null"] }
+        priority: { type: string, enum: [low, medium, high, critical] }
+        status: { type: string, enum: [pending, assigned, in-progress, completed] }
+        issue: { type: string }
+    MaintenanceRecord:
+      type: object
+      required: [id, maintenanceId, pipeline, location, issue, championName, priority, startedAt, completedAt, status]
+      properties:
+        id: { type: string }
+        maintenanceId: { type: string }
+        pipeline: { type: string }
+        location: { type: string }
+        issue: { type: string }
+        championId: { type: ["string", "null"] }
+        championName: { type: string }
+        priority: { type: string, enum: [low, medium, high, critical] }
+        startedAt: { type: string, format: date-time }
+        completedAt: { type: ["string", "null"], format: date-time }
+        status: { type: string, enum: [pending, assigned, in-progress, completed] }
+        alertId: { type: ["string", "null"] }
+    WaterChampion:
+      type: object
+      required: [id, name, phone, assignedZone, status, activeAlerts, completedRepairs, averageResponseMinutes]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        phone: { type: string }
+        assignedZone: { type: string }
+        status: { type: string, enum: [available, on-site, off-duty] }
+        activeAlerts: { type: integer }
+        completedRepairs: { type: integer }
+        averageResponseMinutes: { type: number }
+        statusSource: { type: string, enum: [field, simulator] }
+    MaintenanceRisk:
+      type: object
+      required: [level, explanation, factors]
+      properties:
+        level: { type: string, enum: [low, medium, high, critical] }
+        explanation: { type: string }
+        factors:
+          type: array
+          items: { type: string }
+    Analytics:
+      type: object
+      required: [range, kpis, flowPressure, tankLevel, alertsByRisk, fieldResponse, alertsByZone, simulatedWaterLostPerZone]
+      properties:
+        range: { type: string, enum: [24h, 7d, 30d] }
+        kpis:
+          type: object
+          required: [leakEvents, meanResponseMinutes, sensorsReporting, totalSensors]
+          properties:
+            leakEvents: { type: integer }
+            meanResponseMinutes: { type: ["number", "string"] }
+            sensorsReporting: { type: integer }
+            totalSensors: { type: integer }
+        flowPressure:
+          type: array
+          items:
+            $ref: "#/components/schemas/FlowPressureZonePoint"
+        tankLevel:
+          type: array
+          items:
+            $ref: "#/components/schemas/TankLevelPoint"
+        alertsByRisk:
+          type: array
+          items:
+            $ref: "#/components/schemas/AlertRiskPoint"
+        fieldResponse:
+          type: array
+          items:
+            $ref: "#/components/schemas/FieldResponsePoint"
+        alertsByZone:
+          type: array
+          items:
+            $ref: "#/components/schemas/AlertZonePoint"
+        simulatedWaterLostPerZone:
+          type: array
+          items:
+            $ref: "#/components/schemas/SimulatedLossPoint"
+    FlowPressureZonePoint:
+      type: object
+      required: [time, zone, flowLpm, pressureBar]
+      properties:
+        time: { type: string }
+        zone: { type: string }
+        flowLpm: { type: number }
+        pressureBar: { type: number }
+    TankLevelPoint:
+      type: object
+      required: [time, tankName, tankLevelPercent]
+      properties:
+        time: { type: string }
+        tankName: { type: string }
+        tankLevelPercent: { type: number }
+    AlertRiskPoint:
+      type: object
+      required: [time, riskLevel, source, count]
+      properties:
+        time: { type: string }
+        riskLevel: { type: string, enum: [low, medium, high] }
+        source: { type: string, enum: [field, simulated] }
+        count: { type: integer }
+    FieldResponsePoint:
+      type: object
+      required: [championName, averageResponseMinutes]
+      properties:
+        championName: { type: string }
+        averageResponseMinutes: { type: number }
+    AlertZonePoint:
+      type: object
+      required: [zone, count]
+      properties:
+        zone: { type: string }
+        count: { type: integer }
+    SimulatedLossPoint:
+      type: object
+      required: [zone, litresLost, label]
+      properties:
+        zone: { type: string }
+        litresLost: { type: number }
+        label: { type: string }
+    ReportData:
+      type: object
+      required: [title, from, to, generatedAt, columns, rows]
+      properties:
+        title: { type: string }
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        generatedAt: { type: string, format: date-time }
+        columns:
+          type: array
+          items: { type: string }
+        rows:
+          type: array
+          items:
+            type: array
+            items: { type: string }
+    ProfileUpdate:
+      type: object
+      properties:
+        fullName: { type: string, minLength: 2, maxLength: 120 }
+        mobile: { type: string, minLength: 8, maxLength: 24 }
+        email: { type: string, format: email }
+        assignedZone: { type: string }
+    SystemSettings:
+      type: object
+      required: [flowWarningThreshold, flowLeakThreshold, pressureWarningThreshold, pressureCriticalThreshold, devices]
+      properties:
+        flowWarningThreshold: { type: number }
+        flowLeakThreshold: { type: number }
+        pressureWarningThreshold: { type: number }
+        pressureCriticalThreshold: { type: number }
+        devices:
+          type: array
+          items:
+            $ref: "#/components/schemas/Device"
+    Device:
+      type: object
+      required: [id, name, location, status, lastSeen]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        location: { type: string }
+        status: { type: string, enum: [online, inactive] }
+        lastSeen: { type: string, format: date-time }
+        source: { type: string, enum: [field, simulator] }
+        simulated: { type: boolean }
+    SettingsUpdate:
+      type: object
+      properties:
+        flowWarningThreshold: { type: number, minimum: 0 }
+        flowLeakThreshold: { type: number, minimum: 0 }
+        pressureWarningThreshold: { type: number, minimum: 0 }
+        pressureCriticalThreshold: { type: number, minimum: 0 }
+

@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "HydroGuard"
+description = "A water pipeline protection system for administrators and Water Champions to monitor sensor readings, map pipeline health, triage leaks, coordinate maintenance, and run hardware demonstrations."
+version = "1.0.0"
+id = "artifacts/hydroguard"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18776
+
+[services.development]
+run = "pnpm --filter @workspace/hydroguard run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/hydroguard", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/hydroguard/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18776"
+BASE_PATH = "/"
