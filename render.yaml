@@ -4,7 +4,7 @@ services:
     runtime: python
     region: singapore
     plan: free
-    buildCommand: corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile && pnpm --dir artifacts/hydroguard run build && python3 -m pip install -r backend/requirements.txt
+    buildCommand: pnpm install --no-frozen-lockfile && pnpm --dir artifacts/hydroguard run build && python3 -m pip install -r backend/requirements.txt
     startCommand: cd backend && python3 run.py
     autoDeploy: true
     envVars:
