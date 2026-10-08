@@ -1,4 +1,5 @@
 import math
+import os
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
@@ -17,6 +18,21 @@ from app.models import (
 from app.services.leak_detection import DEFAULT_THRESHOLDS
 
 PUNE_CENTER = (18.5204, 73.8567)
+SEED_DEMO_CHAMPIONS = os.getenv("HYDROGUARD_SEED_DEMO_CHAMPIONS", "0") == "1"
+
+
+def seed_demo_champions(db: Session) -> None:
+    """Keep the demo field-team roster available for existing databases too."""
+    if not SEED_DEMO_CHAMPIONS:
+        return
+    if db.scalar(select(WaterChampion.id).limit(1)) is not None:
+        return
+    db.add_all([
+        WaterChampion(name="Aarav Kulkarni", phone="+919800000001", assigned_zone="Zone 1", latitude=18.5204, longitude=73.8567),
+        WaterChampion(name="Meera Patil", phone="+919800000002", assigned_zone="Zone 2", latitude=18.5261, longitude=73.8622),
+        WaterChampion(name="Rohan Jadhav", phone="+919800000003", assigned_zone="Zone 3", latitude=18.5147, longitude=73.8481),
+        WaterChampion(name="Sana Shaikh", phone="+919800000004", assigned_zone="Zone 4", latitude=18.5330, longitude=73.8710),
+    ])
 
 
 def seed_demo_data(db: Session) -> None:
@@ -24,7 +40,8 @@ def seed_demo_data(db: Session) -> None:
     if db.scalar(select(Pipeline.id).limit(1)) is not None:
         if db.get(SystemSetting, "thresholds") is None:
             db.add(SystemSetting(key="thresholds"))
-            db.commit()
+        seed_demo_champions(db)
+        db.commit()
         return
 
     now = datetime.now(timezone.utc)
@@ -198,4 +215,5 @@ def seed_demo_data(db: Session) -> None:
         pressure_warning=DEFAULT_THRESHOLDS.pressure_warning,
         pressure_leak=DEFAULT_THRESHOLDS.pressure_leak,
     ))
+    seed_demo_champions(db)
     db.commit()

@@ -1,0 +1,8 @@
+{
+  "name": "hydroguard-mobile",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {"build:apk": "bash build-apk.sh"},
+  "dependencies": {"@capacitor/android": "^7.1.2", "@capacitor/app": "^7.1.2", "@capacitor/core": "^7.1.2"},
+  "devDependencies": {"@capacitor/cli": "^7.1.2"}
+}

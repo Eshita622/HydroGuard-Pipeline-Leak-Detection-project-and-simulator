@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 import app.models  # noqa: F401 - register SQLAlchemy model metadata
 from app.config import CORS_ORIGINS
@@ -43,3 +45,9 @@ app.include_router(alerts.router)
 app.include_router(operations.router)
 app.include_router(analytics.router)
 app.include_router(simulation.router)
+
+# Production deployment: serve the Vite output from the same origin as the
+# API so browsers and the Android WebView never resolve /api against localhost.
+FRONTEND_DIR = Path(__file__).resolve().parents[2] / "artifacts" / "hydroguard" / "dist" / "public"
+if FRONTEND_DIR.is_dir():
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")

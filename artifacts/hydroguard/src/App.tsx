@@ -21,12 +21,14 @@ import {
   useGetSettings, useUpdateSettings, setAuthTokenGetter, getHealthCheckQueryKey, getGetAuthSessionQueryKey, getGetDashboardQueryKey,
   getGetSensorsQueryKey, getGetPipelinesQueryKey, getGetAlertsQueryKey, getGetMaintenanceQueryKey,
   getGetWaterChampionsQueryKey, getGetAnalyticsQueryKey,
-  getGetProfileQueryKey, getGetSettingsQueryKey, getGetReportQueryKey, getGetSmsLogQueryKey,
+  getGetProfileQueryKey, getGetSettingsQueryKey, getGetReportQueryKey, getGetSmsLogQueryKey, setBaseUrl,
 } from '@workspace/api-client-react';
+import { apiUrl, API_BASE_URL } from './lib/runtime-config';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { LanguageProvider, useLanguage, LanguageToggle } from './lib/i18n';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { refetchOnWindowFocus: false, retry: 1 } } });
+setBaseUrl(API_BASE_URL || null);
 setAuthTokenGetter(() => typeof localStorage === 'undefined' ? null : localStorage.getItem('hg_access_token'));
 const items = [
   { to: '/dashboard', label: 'Overview', icon: LayoutDashboard },
@@ -71,6 +73,19 @@ function Button({ children, variant = 'primary', className = '', ...props }: any
 function ErrorBox({ error, retry }: { error: unknown; retry?: () => void }) {
   const { t } = useLanguage();
   return <div className="error-box"><AlertTriangle size={18}/><div><b>{t('couldNotLoadView')}</b><p>{errorText(error)}</p>{retry && <button onClick={retry} className="text-action">{t('tryAgain')}</button>}</div></div>;
+}
+function isNetworkFailure(error: unknown) {
+  const status = (error as { status?: number } | null)?.status;
+  return !status || status >= 500;
+}
+function ServerUnavailable({ retry }: { retry: () => void }) {
+  return <main className="not-found" role="alert">
+    <div className="brand-mark"><Waves size={22}/></div>
+    <span className="eyebrow">HYDROGUARD CONNECTION</span>
+    <h1 className="font-display">Can&apos;t reach server</h1>
+    <p>Check your internet connection and try again.</p>
+    <button className="btn btn-primary" onClick={retry}>Try again <ArrowRight size={16}/></button>
+  </main>;
 }
 function Skeleton({ rows = 3 }: { rows?: number }) {
   return <div className="skeleton-stack" aria-label="Loading">{Array.from({ length: rows }, (_, i) => <div key={i} className="skeleton skeleton-row" />)}</div>;
@@ -121,6 +136,7 @@ function AppFrame({ children, adminOnly = false }: { children: React.ReactNode; 
   };
 
   if (session.isLoading) return <div className="screen-loading"><div className="brand-mark"><Waves size={24}/></div><div className="skeleton" style={{ width: 180, height: 12 }}/></div>;
+  if (session.isError && isNetworkFailure(session.error)) return <ServerUnavailable retry={() => session.refetch()}/>;
   if (session.isError || !session.data?.user) return <Navigate to="/login" replace state={{ from: loc.pathname }}/>;
   const user = session.data.user;
   const isAdmin = user.role === 'administrator';
@@ -286,7 +302,7 @@ function Dashboard() {
   const simLoss = useQuery({
     queryKey: ['simulated-water-loss'],
     queryFn: async () => {
-      const res = await fetch('/api/simulation/water-loss', {
+      const res = await fetch(apiUrl('/api/simulation/water-loss'), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) return null;
@@ -590,7 +606,7 @@ function SustainabilityPage() {
   const simLoss = useQuery({
     queryKey: ['simulated-water-loss'],
     queryFn: async () => {
-      const res = await fetch('/api/simulation/water-loss', {
+      const res = await fetch(apiUrl('/api/simulation/water-loss'), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) return null;
@@ -1002,6 +1018,9 @@ function SustainabilityPage() {
 function RouteShell({ children, adminOnly=false }:any){return <AppFrame adminOnly={adminOnly}>{children}</AppFrame>}
 function AppRoutes() {
   const session=useGetAuthSession();
+  if (session.isError && isNetworkFailure(session.error)) {
+    return <ServerUnavailable retry={() => session.refetch()}/>;
+  }
   return <>
   <AlertNotifications enabled={!!session.data?.user}/>
   <Routes>

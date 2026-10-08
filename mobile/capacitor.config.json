@@ -1,0 +1,8 @@
+{
+  "appId": "com.hydroguard.pipeline",
+  "appName": "HydroGuard",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "android": { "allowMixedContent": false },
+  "server": { "androidScheme": "https" }
+}

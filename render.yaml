@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: hydroguard-pipeline
+    runtime: python
+    region: singapore
+    plan: free
+    buildCommand: corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile && pnpm --dir artifacts/hydroguard run build && python3 -m pip install -r backend/requirements.txt
+    startCommand: cd backend && python3 run.py
+    autoDeploy: true
+    envVars:
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: HYDROGUARD_SEED_DEMO_CHAMPIONS
+        value: "1"
